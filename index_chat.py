@@ -76,16 +76,15 @@ def read_directory(path: str):
     documents = loader.load_data()
     return documents
 
-def create_vectorstore():
+def create_vectorstore(collection_name: str):
     print("Loading vector store...")
     embeddings = OpenAIEmbeddings()
-    vectorstore = Chroma(embedding_function=embeddings, persist_directory="chroma")
+    vectorstore = Chroma(embedding_function=embeddings, persist_directory="chroma", collection_name=collection_name)
     print("Done loading vector store.")
     return vectorstore
 
-def create_index_data_retriever_tool():
-    vectorstore = create_vectorstore()
-    chat_llm_4 = ChatOpenAI(model_name='gpt-4', temperature=0, max_tokens=1500)
+def create_index_data_retriever_tool(vectorstore: Chroma):
+    chat_llm_4 = ChatOpenAI(model_name='gpt-3.5-turbo', temperature=0, max_tokens=1000)
     qa = RetrievalQA.from_llm(llm=chat_llm_4, retriever=vectorstore.as_retriever(), verbose=True)
 
     return Tool(
@@ -94,9 +93,13 @@ def create_index_data_retriever_tool():
         description="useful for when you need to answer questions about software development. Input should be a fully formed question, not referencing any obscure pronouns from the conversation before."
     )
 
-def create_agent():
-    tools = [create_index_data_retriever_tool()]
-    chat_llm = ChatOpenAI(model_name='gpt-3.5-turbo', temperature=0, max_tokens=1500)
+
+def create_agent(vectorstore: Chroma, with_qa: bool = True):
+    if with_qa:
+        tools = [create_index_data_retriever_tool(vectorstore=vectorstore)]
+    else:
+        tools = []
+    chat_llm = ChatOpenAI(model_name='gpt-3.5-turbo', temperature=0, max_tokens=1000)
     agent = initialize_agent(tools, chat_llm, agent=AgentType.CHAT_ZERO_SHOT_REACT_DESCRIPTION, verbose=True)
     return agent
 

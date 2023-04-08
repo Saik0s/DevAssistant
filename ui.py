@@ -45,7 +45,8 @@ class RedirectStdout:
         pass
 
 def execute_request(input, output_element, send_button):
-    result = create_agent().run(input)
+    vectorstore = create_vectorstore(collection_name = "langchain")
+    result = create_agent(vectorstore = vectorstore).run(input)
     output_element.update(result)
     send_button.update(disabled=False)
 
@@ -69,8 +70,8 @@ def main():
     ]
 
     right_column = [
-        [sg.Text("URL:")],
-        [sg.InputText(key="-URL-"), sg.Button("Set URL", key="-SET_URL-")],
+        # [sg.Text("URL:")],
+        # [sg.InputText(key="-URL-"), sg.Button("Set URL", key="-SET_URL-")],
         [sg.Checkbox("Show stdout", enable_events=True, key="-TOGGLE_STDOUT-")],
         [sg.Multiline(size=(30, 20), key="-STDOUT-", visible=False)],
     ]

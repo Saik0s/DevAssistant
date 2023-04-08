@@ -8,8 +8,9 @@ def loada_data():
     print("Done loading data.")
     return [d.to_langchain_format() for d in documents]
 
+vectorstore = create_vectorstore(collection_name = "langchain")
+
 if "--load" in sys.argv:
-    vectorstore = create_vectorstore()
     vectorstore.add_documents(loada_data())
     vectorstore.persist()
 
@@ -20,6 +21,6 @@ else:
     print("-" * 80)
 
 print("Thinking...")
-result = create_agent().run(query)
+result = create_agent(vectorstore).run(query)
 print("Done thinking.")
 print(result)
