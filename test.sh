@@ -1,7 +1,7 @@
 #!/bin/bash
 
-OBJECTIVE="Develop an iOS app using Swift that allows users to track their daily exercise routines and monitor their progress over time."
-FIRST_TASK="Design the app's user interface, including the main screen that displays a summary of the user's exercise activities and a navigation menu for accessing different features of the app."
-COLLECTION_NAME="test3"
+OBJECTIVE="Create all the necessary files for a complete ios app using SwiftUI that allows users to track their exercise activities. The app should allow users to add new activities, edit existing activities, and delete activities. The app should also allow users to view a summary of their activities."
+FIRST_TASK="Define the overall project structure and plan development tasks for this objective: $OBJECTIVE"
+COLLECTION_NAME="test"
 
 python3 auto.py --objective "$OBJECTIVE" --first_task "$FIRST_TASK" --collection_name "$COLLECTION_NAME"
