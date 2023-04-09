@@ -20,7 +20,7 @@ from langchain.agents import AgentType, LLMSingleActionAgent
 from llama_index.langchain_helpers.text_splitter import TokenTextSplitter
 from llama_index import SimpleDirectoryReader, Document
 from llama_index.utils import globals_helper
-from langchain.text_splitter import NLTKTextSplitter, SpacyTextSplitter, RecursiveCharacterTextSplitter
+from langchain.text_splitter import NLTKTextSplitter, SpacyTextSplitter, RecursiveCharacterTextSplitter, PythonCodeTextSplitter, MarkdownTextSplitter
 from langchain.agents import initialize_agent, load_tools, ConversationalChatAgent, AgentExecutor
 from langchain.agents.chat.base import ChatAgent
 from langchain.memory import ConversationBufferMemory, ConversationSummaryBufferMemory
@@ -31,6 +31,8 @@ def read_github(repo, branch):
         github_token=os.environ.get("GITHUB_TOKEN"),
         owner=owner,
         repo=repo,
+        verbose=True,
+        ignore_file_extensions=[".ipynb", ".jpeg", ".jpg", ".png"]
     ).load_data(branch=branch)
     return documents
 
@@ -108,15 +110,20 @@ def add_to_vectorstore(vectorstore: Chroma, documents: List[Document]):
     print("Adding documents to vector store...")
     doc_chunks = []
     for document in documents:
-        nltk_splitter = NLTKTextSplitter()
-        text_chunks = nltk_splitter.split_text(document.text)
+        filename = document.extra_info["file_name"]
+        if filename.endswith('.py'):
+            splitter = PythonCodeTextSplitter(chunk_size=1000, chunk_overlap=0)
+        elif filename.endswith('.md'):
+            splitter = MarkdownTextSplitter(chunk_size=1000, chunk_overlap=0)
+        else:
+            splitter = NLTKTextSplitter(chunk_size=1000, chunk_overlap=0)
+        text_chunks = splitter.split_text(document.text)
         doc_chunks.extend(Document(text, doc_id=document.doc_id, extra_info=document.extra_info) for text in text_chunks)
 
     documents = [d.to_langchain_format() for d in doc_chunks]
     vectorstore.add_documents(documents)
     vectorstore.persist()
     print("Done adding documents to vector store.")
-
 
 def create_index_data_retriever_tool(vectorstore: Chroma):
     # chat_llm = ChatOpenAI(model_name="gpt-4", temperature=0, max_tokens=1000)
@@ -156,7 +163,7 @@ def create_index_data_retriever_tool(vectorstore: Chroma):
 
     qa = RetrievalQA.from_llm(
         llm=chat_llm,
-        retriever=vectorstore.as_retriever(k=2),
+        retriever=vectorstore.as_retriever(k=10),
         verbose=True,
         prompt=CHAT_PROMPT,
     )
@@ -176,32 +183,16 @@ def create_agent(vectorstore: Chroma, with_qa: bool = False):
     tools = []
     tools = load_tools(["searx-search"], llm=chat_llm,
                     searx_host="http://localhost:8080", unsecure=True)
-    # if with_qa:
-    #     tools.append(create_index_data_retriever_tool(vectorstore=vectorstore))
+    if with_qa:
+        tools.append(create_index_data_retriever_tool(vectorstore=vectorstore))
 
     from tools import create_file_tool, create_folder_tool, create_web_readability_tool
     tools.append(create_file_tool())
     tools.append(create_folder_tool())
-    # tools.append(create_web_readability_tool())
 
-    # chat_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0, max_tokens=1000)
-    # return initialize_agent(
-    #     tools,
-    #     chat_llm,
-    #     agent=AgentType.CHAT_ZERO_SHOT_REACT_DESCRIPTION,
-    #     verbose=True,
-    # )
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
     from tools import NewAgentOutputParser
-
-    # prompt = CustomPromptTemplate(
-    #     template=custom_template,
-    #     tools=tools,
-    #     # This omits the `agent_scratchpad`, `tools`, and `tool_names` variables because those are generated dynamically
-    #     # This includes the `intermediate_steps` variable because that is needed
-    #     input_variables=["input", "intermediate_steps"]
-    # )
 
     agent = ConversationalChatAgent.from_llm_and_tools(
         llm=chat_llm, tools=tools, memory=memory, output_parser=NewAgentOutputParser(), verbose=True,
@@ -220,24 +211,6 @@ Here is the user's input (remember to respond with a single action in a format I
 {{{{input}}}}"""
         )
 
-    # prompt = ChatAgent.create_prompt(
-    #     tools,
-    #     format_instructions=custom_format_template,
-    # )
-    # llm_chain = LLMChain(llm=llm, prompt=prompt)
-    # tool_names = [tool.name for tool in tools]
-    # agent = ChatAgent(
-    #     llm_chain=llm_chain,
-    #     allowed_tools=tool_names,
-    #     format
-    #     )
-    # agent = LLMSingleActionAgent(
-    #     llm_chain=llm_chain,
-    #     output_parser=CustomOutputParser(),
-    #     stop=["\nObservation:"],
-    #     allowed_tools=tool_names
-    # )
-
     return AgentExecutor.from_agent_and_tools(
         agent=agent,
         tools=tools,
@@ -247,6 +220,4 @@ Here is the user's input (remember to respond with a single action in a format I
 
 def create_simple_chain():
     print("Creating simple chain...")
-    # llm = OpenAI(temperature=0, max_tokens=500, verbose=True)
-    # return LLMChain.from_string(llm=llm, template="")
     return OpenAI(temperature=0, max_tokens=500)
