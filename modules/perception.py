@@ -40,7 +40,6 @@ class PerceptionModule:
             text,
         )
 
-    # TODO Rename this here and in `process_text_nlp` and `process_task_nlp`
     def _process_nlp(self, arg0, text):
         template = arg0
         system_message_prompt = SystemMessagePromptTemplate.from_template(template)

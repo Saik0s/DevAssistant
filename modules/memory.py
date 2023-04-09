@@ -33,12 +33,11 @@ class MemoryModule:
             print(f"An error occurred during similarity search: {e}")
             return ""
 
-
     def get_context_data(self):
         return self.project_summary
 
     def store(self, text: str):
-        self._add_to_vectorstore(self.vectorstore, [Document(text)])
+        self._add_to_vectorstore(self.vectorstore, [text])
         self._update_project_summary(text)
 
     def _create_vectorstore(self, collection_name: str):
@@ -49,24 +48,11 @@ class MemoryModule:
             collection_name=collection_name,
         )
 
-    def _add_to_vectorstore(self, vectorstore: Chroma, documents: List[Document]):
-        doc_chunks = []
-        for document in documents:
-            filename = document.extra_info["file_name"] or ""
-            if filename.endswith(".py"):
-                splitter = PythonCodeTextSplitter(chunk_size=1000, chunk_overlap=0)
-            elif filename.endswith(".md"):
-                splitter = MarkdownTextSplitter(chunk_size=1000, chunk_overlap=0)
-            else:
-                splitter = NLTKTextSplitter(chunk_size=1000, chunk_overlap=0)
-            text_chunks = splitter.split_text(document.text)
-            doc_chunks.extend(
-                Document(text, doc_id=document.doc_id, extra_info=document.extra_info)
-                for text in text_chunks
-            )
-
-        documents = [d.to_langchain_format() for d in doc_chunks]
-        vectorstore.add_documents(documents)
+    def _add_to_vectorstore(self, vectorstore: Chroma, texts: List[str]):
+        for text in texts:
+            splitter = NLTKTextSplitter(chunk_size=1000, chunk_overlap=0)
+            text_chunks = splitter.split_text(text)
+            vectorstore.add_texts(text_chunks)
         vectorstore.persist()
 
     def _update_project_summary(self, text: str):
@@ -79,5 +65,12 @@ class MemoryModule:
         )
         chain = LLMChain(llm=self.chat_model, prompt=chat_prompt)
 
-        updated_summary = chain.run(text, current_summary=self.project_summary, new_entry=text, max_tokens=self.max_tokens)
+        updated_summary = chain.run(
+            {
+                "text": text,
+                "current_summary": self.project_summary,
+                "new_entry": text,
+                "max_tokens": self.max_tokens,
+            }
+        )
         self.project_summary = updated_summary

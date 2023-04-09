@@ -1,5 +1,5 @@
 import os
-os.environ["LANGCHAIN_HANDLER"] = "langchain"
+# os.environ["LANGCHAIN_HANDLER"] = "langchain"
 
 # from modules.communication import CommunicationModule
 from modules.perception import PerceptionModule
@@ -9,19 +9,23 @@ from modules.execution import ExecutionModule
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
 import logging as log
+from pprint import pprint
 
-log_format = "%(asctime)s - %(levelname)s - %(message)s"
-log.basicConfig(level=log.DEBUG, format=log_format)
+# log_format = "%(asctime)s - %(levelname)s - %(message)s"
+# log.basicConfig(level=log.DEBUG, format=log_format)
 
 log.debug("Starting the script")
 log.info("Processing data")
 
+chat_llm = ChatOpenAI(temperature=0, max_tokens=1000)
+llm = OpenAI(temperature=0, max_tokens=1000)
+
 # Initialize the system components
 # communication_module = CommunicationModule()
-memory_module = MemoryModule(collection_name="assist", chat_model=ChatOpenAI(temperature=0))
+memory_module = MemoryModule(collection_name="assist", chat_model=chat_llm)
 perception_module = PerceptionModule(memory_module)
-reasoning_module = ReasoningModule(llm=OpenAI(temperature=0))
-execution_module = ExecutionModule(chat_llm=ChatOpenAI(temperature=0), llm=OpenAI(temperature=0), memory_module=memory_module)
+reasoning_module = ReasoningModule(llm=llm)
+execution_module = ExecutionModule(chat_llm=chat_llm, llm=llm, memory_module=memory_module)
 
 # Define the overall objective
 objective = "Create a voice recording iOS app using SwiftUI"
@@ -33,8 +37,8 @@ reasoning_module.initialize_tasks(objective)
 while True:
     # Get the current task from the ReasoningModule
     current_task = reasoning_module.get_current_task()
-    log.debug(f"Current task: {current_task}")
-    log.debug(f"Total tasks: {reasoning_module.get_task_list()}")
+    pprint(f"Current task: {current_task}")
+    pprint(f"Total tasks: {reasoning_module.get_task_list()}")
 
     # If there are no more tasks, the objective is reached, and the loop can break
     if not current_task:
