@@ -32,23 +32,20 @@ import re
 
 PREFIX_PATH = f"{str(Path(__file__).resolve().parent)}/runs/test_output/"
 
-
-def create_file_with_content(input_str: str) -> str:
-    try:
-        input_lines = input_str.split("\n")
-        path = PREFIX_PATH + input_lines[0].replace("..", "")
-        content = "\n".join(input_lines[1:])
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w") as file:
-            file.write(content)
-
-        return f"Created file at {path}"
-    except Exception as e:
-        print("create_file_with_content error", e)
-        return str(e)
-
-
 def create_file_tool() -> Tool:
+    def create_file_with_content(input_str: str) -> str:
+        try:
+            input_lines = input_str.split("\n")
+            path = PREFIX_PATH + input_lines[0].replace("..", "")
+            content = "\n".join(input_lines[1:])
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w") as file:
+                file.write(content)
+
+            return f"Created file at {path}"
+        except Exception as e:
+            print("create_file_with_content error", e)
+            return str(e)
     return Tool(
         name="create file",
         description="Create or overwrite one file with action_input first line is the relative path, the rest is the content",

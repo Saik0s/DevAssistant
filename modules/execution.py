@@ -1,53 +1,30 @@
-from langchain.chat_models import ChatOpenAI
-from langchain import LLMChain
-from langchain.prompts.chat import BaseChatPromptTemplate
-from langchain.schema import HumanMessage
 from langchain.agents import (
-    LLMActionAgent,
     AgentExecutor,
-    SerpAPIWrapper,
     ConversationalChatAgent,
 )
-from typing import List
-import json
-from typing import Any, List, Optional, Sequence, Tuple
-
-from langchain.agents.agent import Agent
-from langchain.callbacks.base import BaseCallbackManager
-from langchain.chains import LLMChain
-from langchain.prompts.base import BasePromptTemplate
-from langchain.prompts.chat import (
-    ChatPromptTemplate,
-    HumanMessagePromptTemplate,
-    MessagesPlaceholder,
-    SystemMessagePromptTemplate,
-)
-from langchain.schema import (
-    AgentAction,
-    AIMessage,
-    BaseLanguageModel,
-    BaseMessage,
-    BaseOutputParser,
-    HumanMessage,
-)
-from langchain.tools.base import BaseTool
-
 
 class ExecutionModule:
-    def __init__(self, chat_model, tools):
-        self.chat_model = chat_model
-        self.tools = tools
+    def __init__(self, chat_llm, llm, memory_module):
+        self.chat_llm = chat_llm
+        self.llm = llm
+        self.memory_module = memory_module
+        self.tools = self._create_tools(chat_llm, memory_module)
 
     def execute(self, task_info):
         agent = ConversationalChatAgent.from_llm_and_tools(
-            llm=self.chat_model,
+            llm=self.chat_llm,
             tools=self.tools,
+            verbose=True
         )
         agent_executor = AgentExecutor.from_agent_and_tools(
             agent=agent, tools=self.tools, verbose=True
         )
-        result = agent_executor.run(task_info)
-        return result["output"]
+        result = agent_executor.run({"input": task_info, "chat_history": []})
+        return result
+
+    def _create_tools(self, llm, memory_module):
+        from .execution_tools import get_tools
+        return get_tools(llm, memory_module)
 
 
 # SYSTEM_MESSAGE = """Assistant is an AI who performs one task based on the following objective: {{objective}}. It can use tools. It always responds in json format."""
