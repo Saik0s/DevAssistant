@@ -9,12 +9,12 @@ from langchain.prompts.chat import (
 from modules.memory import MemoryModule
 
 class PerceptionModule:
-    def __init__(self, memory_module: MemoryModule, chat_model=ChatOpenAI(temperature=0)):
+    def __init__(self, memory_module: MemoryModule, chat_model):
         self.memory_module = memory_module
         self.chat_model = chat_model
 
     def process_task(self, text):
-        summary = self.memory_module.get_context_data()
+        summary = self.memory_module.get_context()
         text = f"Project State Summary: {summary}\n\nTask: {text}"
 
         # Process the task using NLP techniques or AI models
@@ -30,13 +30,13 @@ class PerceptionModule:
 
     def _process_text_nlp(self, text):
         return self._process_nlp(
-            "You are a helpful AI that processes text and summarizes the main points.",
+            "You are a helpful AI that takes input text, summarizes and optimizes it to retain all essential details while reducing its length.",
             text,
         )
 
     def _process_task_nlp(self, text):
         return self._process_nlp(
-            "You are a helpful AI that processes task and add missing details. Output should contain only improved task.",
+            "You are a helpful AI that takes an input task, optimizes it to include all essential details, and reduces its length while maintaining its effectiveness.",
             text,
         )
 

@@ -13,17 +13,18 @@ from pprint import pprint
 log_format = "%(asctime)s - %(levelname)s - %(message)s"
 log.basicConfig(level=log.DEBUG, format=log_format)
 
+# Define the overall objective
+objective = "The objective is to create a versatile CLI tool that streamlines the process of completing, generating, and prioritizing tasks within an AI system. This tool will incorporate security/safety agents, task sequencing, parallel tasks, interim milestones, and real-time priority updates. By addressing key risks like data privacy, security, and ethical concerns, the CLI tool will ensure the successful deployment and operation of the autonomous agent while minimizing potential dangers. It should utilize OpenAI completion API using langchain chains."
+
 chat_llm = ChatOpenAI(temperature=0, max_tokens=1000, verbose=True)
 llm = OpenAI(temperature=0, max_tokens=1000, verbose=True)
 
 # Initialize the system components
-memory_module = MemoryModule(collection_name="assist", chat_model=chat_llm)
-perception_module = PerceptionModule(memory_module)
-reasoning_module = ReasoningModule(llm=llm)
+memory_module = MemoryModule(collection_name="assist", objective=objective, chat_model=chat_llm)
+perception_module = PerceptionModule(memory_module, chat_llm)
+reasoning_module = ReasoningModule(llm=llm, objective=objective)
 execution_module = ExecutionModule(chat_llm=chat_llm, llm=llm, memory_module=memory_module)
 
-# Define the overall objective
-objective = "The objective is to create a versatile CLI tool that streamlines the process of completing, generating, and prioritizing tasks within an AI system. This tool will incorporate security/safety agents, task sequencing, parallel tasks, interim milestones, and real-time priority updates. By addressing key risks like data privacy, security, and ethical concerns, the CLI tool will ensure the successful deployment and operation of the autonomous agent while minimizing potential dangers. It should utilize OpenAI completion API using langchain chains."
 
 # Initialize tasks based on the objective
 reasoning_module.initialize_tasks(objective)
@@ -58,4 +59,4 @@ while True:
     reasoning_module.advance_to_next_task()
 
     # ReasoningModule analyzes the stored data and updates the task priorities or generates new tasks
-    reasoning_module.update_tasks(memory_module.get_context_data(), objective)
+    reasoning_module.update_tasks(memory_module.get_context(), objective)
