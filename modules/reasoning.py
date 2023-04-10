@@ -48,14 +48,14 @@ class TaskCreationChain(LLMChain):
     def from_llm(cls, llm: BaseLLM, objective: str, verbose: bool = True) -> LLMChain:
         """Get the response parser."""
         task_creation_template = """
-        You are a task creation AI that generates detailed and specific tasks based on the following objective: {objective}.
-        The last completed task produced the result: {result}.
-        This result was obtained from the task description: {task_description}.
-        The following tasks are still incomplete: {incomplete_tasks}.
-        Considering the result, create new tasks for the AI system to complete, ensuring they do not overlap with the incomplete tasks.
-        Each task should be straightforward, easy to complete in one go, and specific.
-        Return the tasks as an array.
-        """.strip()
+You are a task creation AI that generates detailed and specific tasks based on the following objective: {objective}.
+The last completed task produced the result: {result}.
+This result was obtained from the task description: {task_description}.
+The following tasks are still incomplete: {incomplete_tasks}.
+Considering the result, create new tasks for the AI system to complete, ensuring they do not overlap with the incomplete tasks.
+Each task should be straightforward, easy to complete in one go, and specific.
+Return the tasks as an array.
+"""
         prompt = PromptTemplate(
             template=task_creation_template,
             partial_variables={"objective": objective},
@@ -63,7 +63,7 @@ class TaskCreationChain(LLMChain):
         )
         return cls(prompt=prompt, llm=llm, verbose=verbose)
 
-    def get_next_task(self, result: Dict, task_description: str, task_list: List[Dict]) -> List[Dict]:
+    def get_next_task(self, result: str, task_description: str, task_list: List[Dict]) -> List[Dict]:
         """Get the next task."""
         incomplete_tasks = ", ".join([task["task_name"] for task in task_list])
         response = self.run(result=result, task_description=task_description, incomplete_tasks=incomplete_tasks)
@@ -77,15 +77,15 @@ class TaskPrioritizationChain(LLMChain):
     def from_llm(cls, llm: BaseLLM, objective: str, verbose: bool = True) -> LLMChain:
         """Get the response parser."""
         task_prioritization_template = """
-        You are a task prioritization AI responsible for refining and prioritizing
-        the following tasks: {task_names}.
-        Keep in mind the ultimate objective of your team: {objective}.
-        Do not remove any tasks. Return the result as a numbered list, like:
-        #. First task
-        #. Second task
-        Ensure that each task is clear, specific, and can be completed in a single attempt.
-        Start the task list with number {next_task_id}.
-        """.strip()
+You are a task prioritization AI responsible for refining and prioritizing
+the following tasks: {task_names}.
+Keep in mind the ultimate objective of your team: {objective}.
+Do not remove any tasks. Return the result as a numbered list, like:
+#. First task
+#. Second task
+Ensure that each task is clear, specific, and can be completed in a single attempt.
+Start the task list with number {next_task_id}.
+"""
         prompt = PromptTemplate(
             template=task_prioritization_template,
             partial_variables={"objective": objective},

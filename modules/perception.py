@@ -16,14 +16,15 @@ class PerceptionModule:
     def process_task(self, text):
         summary = self.memory_module.get_context()
         text = f"Project State Summary: {summary}\n\nTask: {text}"
+        return text
 
         # Process the task using NLP techniques or AI models
-        processed_task = self._process_task_nlp(text)
+        # processed_task = self._process_task_nlp(text)
 
         # Retrieve related information from the MemoryModule
-        related_information = self.memory_module.retrieve_related_information(processed_task)
+        # related_information = self.memory_module.retrieve_related_information(text)
 
-        return f"Related Information: {related_information}\n\nTask: {processed_task}"
+        # return f"Related Information: {related_information}\n\nTask: {processed_task}"
 
     def process_text(self, text):
         return self._process_text_nlp(text)
@@ -36,7 +37,7 @@ class PerceptionModule:
 
     def _process_task_nlp(self, text):
         return self._process_nlp(
-            "You are a helpful AI that takes an input task, optimizes it to include all essential details, and reduces its length while maintaining its effectiveness.",
+            "You are a helpful AI that takes an input task, optimizes it to include all essential details, and reduces its length while maintaining its effectiveness. You should compress it as much as possible.",
             text,
         )
 

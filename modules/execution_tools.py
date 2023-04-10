@@ -11,7 +11,7 @@ from llama_index.optimization.optimizer import SentenceEmbeddingOptimizer
 
 from modules.memory import MemoryModule
 
-PREFIX_PATH = f"{str(Path(__file__).resolve().parent)}/runs/test_output/"
+PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output/"
 
 def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
   tools = load_tools(["searx-search", "searx-search-results-json"], llm=llm, searx_host="http://localhost:8080", unsecure=True)
@@ -110,7 +110,7 @@ def write_tool() -> Tool:
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "w") as file:
                 file.write(content)
-            return f"Written content to file at {path}"
+            return f"Written content to file at {input_lines[0]}"
         except Exception as e:
             return str(e)
     return Tool(
@@ -177,7 +177,7 @@ def replace_content_tool() -> Tool:
             with open(path, "w") as file:
                 file.write(content)
 
-            return f"Replaced content in file at {path}"
+            return f"Replaced content in file at {input_lines[0]}"
         except Exception as e:
             return str(e)
     return Tool(
@@ -193,7 +193,7 @@ def copy_tool() -> Tool:
             src_path = PREFIX_PATH + input_lines[0].replace("..", "")
             dest_path = PREFIX_PATH + input_lines[1].replace("..", "")
             shutil.copy(src_path, dest_path)
-            return f"Copied file from {src_path} to {dest_path}"
+            return f"Copied file from {input_lines[0]} to {input_lines[1]}"
         except Exception as e:
             return str(e)
     return Tool(
@@ -209,7 +209,7 @@ def move_tool() -> Tool:
             src_path = PREFIX_PATH + input_lines[0].replace("..", "")
             dest_path = PREFIX_PATH + input_lines[1].replace("..", "")
             shutil.move(src_path, dest_path)
-            return f"Moved file from {src_path} to {dest_path}"
+            return f"Moved file from {input_lines[0]} to {input_lines[1]}"
         except Exception as e:
             return str(e)
     return Tool(
@@ -228,7 +228,7 @@ def delete_tool() -> Tool:
                 shutil.rmtree(path)
             else:
                 return "Invalid path."
-            return f"Deleted {path}"
+            return f"Deleted {input_str}"
         except Exception as e:
             return str(e)
     return Tool(
@@ -246,7 +246,7 @@ def append_tool() -> Tool:
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "a") as file:
                 file.write(content)
-            return f"Appended content to file at {path}"
+            return f"Appended content to file at {input_lines[0]}"
         except Exception as e:
             return str(e)
     return Tool(
