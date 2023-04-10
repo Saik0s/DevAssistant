@@ -33,7 +33,7 @@ class ExecutionModule:
 
     def execute(self, task_info):
         agent = TaskExecutionAgent.create_from_llm_and_tools(
-            llm=self.chat_llm, tools=self.tools, verbose=True
+            llm=self.llm, tools=self.tools, verbose=True
         )
         agent_executor = AgentExecutor.create_from_agent_and_tools(
             agent=agent, tools=self.tools, verbose=True
@@ -69,36 +69,36 @@ class TaskExecutionAgent(ConversationalChatAgent):
         )
         tool_names = ", ".join([tool.name for tool in tools])
         execution_template = f"""
-            Performs one task based on the following objective: {{objective}}.
-            Take into account these previously completed tasks context: {{context}}.
-            Available tools that you can use:
-            {tool_strings}
-            Use one of the following response formats:
+        Performs one task based on the following objective: {{objective}}.
+        Take into account these previously completed tasks context: {{context}}.
+        Available tools that you can use:
+        {tool_strings}
+        Use one of the following response formats:
 
-            **Option 1:**
-            If you want to use a tool, use this format:
+        **Option 1:**
+        If you want to use a tool, use this format:
 
-            ```json
-            {{{{
-                "action": string, // The action to take. Must be one of {tool_names}
-                "action_input": string // The input to the action
-            }}}}
-            ```
+        ```json
+        {{{{
+            "action": string, // The action to take. Must be one of {tool_names}
+            "action_input": string // The input to the action
+        }}}}
+        ```
 
-            **Option 2:**
-            If you want to respond with a final answer, use this format:
+        **Option 2:**
+        If you want to respond with a final answer, use this format:
 
-            ```json
-            {{{{
-                "action": "Final Answer",
-                "action_input": string // You should put what you want to return to use here
-            }}}}
-            ```
+        ```json
+        {{{{
+            "action": "Final Answer",
+            "action_input": string // You should put what you want to return to use here
+        }}}}
+        ```
 
-            Your task: {{task}}
+        Your task: {{task}}
         """
 
-        input_variables = (["objective", "context", "task", "agent_scratchpad"],)
+        input_variables = ["objective", "context", "task", "agent_scratchpad"]
         messages = [
             SystemMessagePromptTemplate.from_template(system_message),
             HumanMessagePromptTemplate.from_template(execution_template),
@@ -115,7 +115,6 @@ class TaskExecutionAgent(ConversationalChatAgent):
         **kwargs: Any,
     ) -> Agent:
         cls._validate_tools(tools)
-        _output_parser = AgentOutputParser()
         prompt = cls.create_prompt(tools)
         llm_chain = LLMChain(
             llm=llm,
@@ -126,6 +125,5 @@ class TaskExecutionAgent(ConversationalChatAgent):
         return cls(
             llm_chain=llm_chain,
             allowed_tools=tool_names,
-            output_parser=_output_parser,
             **kwargs,
         )

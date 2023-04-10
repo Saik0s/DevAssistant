@@ -23,11 +23,11 @@ llm = OpenAI(temperature=0, max_tokens=1000, verbose=True)
 memory_module = MemoryModule(collection_name="assist", objective=objective, chat_model=chat_llm)
 perception_module = PerceptionModule(memory_module, chat_llm)
 reasoning_module = ReasoningModule(llm=llm, objective=objective)
-execution_module = ExecutionModule(chat_llm=chat_llm, llm=llm, memory_module=memory_module)
+execution_module = ExecutionModule(llm=chat_llm, memory_module=memory_module)
 
 
 # Initialize tasks based on the objective
-reasoning_module.initialize_tasks(objective)
+reasoning_module.initialize_tasks()
 
 # Main loop
 while True:

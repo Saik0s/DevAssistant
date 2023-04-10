@@ -42,7 +42,7 @@ def read_remote_depth_tool() -> Tool:
             loader = RemoteDepthReader()
             documents = loader.load_data(url=url, depth=depth)
             index = GPTSimpleVectorIndex.from_documents(documents)
-            return index.query(query, optimizer=SentenceEmbeddingOptimizer(percentile_cutoff=0.5)))
+            return index.query(query, optimizer=SentenceEmbeddingOptimizer(percentile_cutoff=0.5))
         except Exception as e:
             return str(e)
 
