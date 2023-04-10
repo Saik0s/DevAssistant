@@ -158,8 +158,15 @@ Remember to respond with a markdown code snippet of a json blob with a single ac
 
         if combined_content_length > 8000:
             print("\033[95mContent length is too big and will be compressed.\033[0m")
-            summary_prompt = f"Summarize the following thoughts in a compressed form as much as possible, but without losing any details."
-            summary = self.llm_chain.predict(summary_prompt)
+            # TODO: Improve or at least extract this chain
+            llm = OpenAI(temperature=0)
+            prompt = PromptTemplate(
+                input_variables=["text"],
+                template="Summarize the following thoughts in a compressed form as much as possible, but without losing any details. Text: {text}",
+            )
+            chain = LLMChain(llm=llm, prompt=prompt)
+            combined_content = "\n".join([thought.content for thought in thoughts])
+            summary = chain.run(combined_content)
             thoughts = [AIMessage(content=summary)]
 
         return thoughts
