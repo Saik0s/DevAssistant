@@ -8,7 +8,6 @@ from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
 import logging as log
 from langchain.callbacks.shared import SharedCallbackManager
-from langchain.callbacks.stdout import StdOutCallbackHandler
 from langchain.callbacks.openai_info import OpenAICallbackHandler, LLMResult
 
 os.environ["LANGCHAIN_HANDLER"] = "langchain"
@@ -59,18 +58,17 @@ SharedCallbackManager().add_handler(DebugCallbackHandler())
 
 # Define the overall objective
 objective = (
-    "The objective is to create a versatile CLI tool that streamlines the process of "
-    "completing, generating, and prioritizing tasks within an AI system(Task-Driven "
-    "Autonomous Agent). This tool will incorporate security/safety agents, task "
-    "sequencing, parallel tasks, interim milestones, and real-time priority updates. By "
-    "addressing key risks like data privacy, security, and ethical concerns, the CLI tool "
-    "will ensure the successful deployment and operation of the autonomous agent while "
-    "minimizing potential dangers. It should utilize OpenAI completion API using langchain "
-    "chains."
+    "The goal is to develop a user-friendly SwiftUI gallery screen that integrates The Composable "
+    "Architecture from Point-Free, presenting a grid-like gallery of images fetched from an API. "
+    "The feature should support pagination and search functionality, and enable users to like "
+    "images while showing the like status and count for each image. By leveraging The Composable "
+    "Architecture, the resulting feature will be modular, maintainable, and thoroughly tested, "
+    "ensuring a smooth user experience, efficient memory usage, and adaptability across various "
+    "screen sizes and orientations."
 )
 
-chat_llm = ChatOpenAI(temperature=0, max_tokens=700, verbose=True)
-llm = OpenAI(temperature=0, max_tokens=700, verbose=True)
+chat_llm = ChatOpenAI(temperature=0, max_tokens=1000, verbose=True)
+llm = OpenAI(temperature=0, max_tokens=1000, verbose=True)
 
 # Initialize the system components
 memory_module = MemoryModule(collection_name="assist", objective=objective, chat_model=chat_llm)

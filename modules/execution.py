@@ -1,10 +1,9 @@
-from langchain import BasePromptTemplate
+from langchain import BasePromptTemplate, OpenAI, PromptTemplate
 from langchain.agents.conversational_chat.base import (
     ConversationalChatAgent,
     BaseOutputParser,
 )
-import json
-from typing import Any, Optional, Sequence
+from typing import Any, Dict, Optional, Sequence
 from langchain.agents.agent import Agent, AgentExecutor
 from langchain.callbacks.base import BaseCallbackManager
 from langchain.chains import LLMChain
@@ -23,10 +22,6 @@ import json
 from typing import Any, List, Optional, Sequence, Tuple
 
 from langchain.agents.agent import Agent
-from langchain.agents.conversational_chat.prompt import (
-    FORMAT_INSTRUCTIONS,
-    TEMPLATE_TOOL_RESPONSE,
-)
 from langchain.callbacks.base import BaseCallbackManager
 from langchain.chains import LLMChain
 from langchain.prompts.base import BasePromptTemplate
@@ -176,16 +171,41 @@ Remember to respond with a markdown code snippet of a json blob with a single ac
             response = self.output_parser.parse(llm_output)
             return response["action"], response["action_input"]
         except Exception as e:
-            print(e)
+            print(f"Error occurred while extracting tool and input: {e}")
+            print(f"LLM output: {llm_output}")
             return None
 
-    def _fix_text(self, text: str) -> List[BaseMessage]:
-        """Fix the text."""
-        thoughts: List[BaseMessage] = []
-        thoughts.append(AIMessage(content=text))
-        thoughts.append(HumanMessage(content="Couldn't extract action and action input."))
-        return thoughts
 
+
+    def _fix_text(self, text: str) -> str:
+        """Fix the text."""
+        return text + "\n\n" + "Couldn't extract action and action input."
+
+    def _get_next_action(self, full_inputs: Dict[str, str]) -> AgentAction:
+        full_output = self.llm_chain.predict(**full_inputs)
+        parsed_output = self._extract_tool_and_input(full_output)
+        while parsed_output is None:
+            full_output = self._fix_text(full_output)
+            full_inputs["agent_scratchpad"].append(AIMessage(content=full_output))
+            output = self.llm_chain.predict(**full_inputs)
+            full_output += output
+            parsed_output = self._extract_tool_and_input(full_output)
+        return AgentAction(
+            tool=parsed_output[0], tool_input=parsed_output[1], log=full_output
+        )
+
+    async def _aget_next_action(self, full_inputs: Dict[str, str]) -> AgentAction:
+        full_output = await self.llm_chain.apredict(**full_inputs)
+        parsed_output = self._extract_tool_and_input(full_output)
+        while parsed_output is None:
+            full_output = self._fix_text(full_output)
+            full_inputs["agent_scratchpad"].append(AIMessage(content=full_output))
+            output = await self.llm_chain.apredict(**full_inputs)
+            full_output += output
+            parsed_output = self._extract_tool_and_input(full_output)
+        return AgentAction(
+            tool=parsed_output[0], tool_input=parsed_output[1], log=full_output
+        )
 
     @classmethod
     def create_from_llm_and_tools(
