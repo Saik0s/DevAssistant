@@ -135,8 +135,13 @@ If you want to respond with a final answer, use this format:
     ) -> List[BaseMessage]:
         """Construct the scratchpad that lets the agent continue its thought process."""
         thoughts: List[BaseMessage] = []
-        for action, observation in intermediate_steps:
-            thoughts.append(AIMessage(content=action.log))
+        combined_content_length = 0
+        for index, (action, observation) in enumerate(intermediate_steps):
+            if index < len(intermediate_steps) - 2:
+                action_log = "action text truncated"
+            else:
+                action_log = action.log
+            thoughts.append(AIMessage(content=action_log))
             human_message = HumanMessage(
                 content="""TOOL RESPONSE:
 ---------------------
@@ -149,6 +154,14 @@ Remember to respond with a markdown code snippet of a json blob with a single ac
 """.format(observation=observation)
             )
             thoughts.append(human_message)
+            combined_content_length += len(action_log) + len(human_message.content)
+
+        if combined_content_length > 8000:
+            print("\033[95mContent length is too big and will be compressed.\033[0m")
+            summary_prompt = f"Summarize the following thoughts in a compressed form as much as possible, but without losing any details."
+            summary = self.llm_chain.predict(summary_prompt)
+            thoughts = [AIMessage(content=summary)]
+
         return thoughts
 
     def _extract_tool_and_input(self, llm_output: str) -> Optional[Tuple[str, str]]:
@@ -159,9 +172,12 @@ Remember to respond with a markdown code snippet of a json blob with a single ac
             print(e)
             return None
 
-    def _fix_text(self, text: str) -> str:
+    def _fix_text(self, text: str) -> List[BaseMessage]:
         """Fix the text."""
-        return f"{text}\n\nCouldn't extract action and action input."
+        thoughts: List[BaseMessage] = []
+        thoughts.append(AIMessage(content=text))
+        thoughts.append(HumanMessage(content="Couldn't extract action and action input."))
+        return thoughts
 
 
     @classmethod
