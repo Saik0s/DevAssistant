@@ -67,8 +67,8 @@ objective = (
     "screen sizes and orientations."
 )
 
-chat_llm = ChatOpenAI(temperature=0, max_tokens=1000, verbose=True)
-llm = OpenAI(temperature=0, max_tokens=1000, verbose=True)
+chat_llm = ChatOpenAI(temperature=0, model_name="gpt-4", max_tokens=1500, verbose=True)
+llm = OpenAI(temperature=0, max_tokens=1500, verbose=True)
 
 # Initialize the system components
 memory_module = MemoryModule(collection_name="assist", objective=objective, chat_model=chat_llm)
