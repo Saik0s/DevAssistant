@@ -1,5 +1,5 @@
 import os
-# os.environ["LANGCHAIN_HANDLER"] = "langchain"
+os.environ["LANGCHAIN_HANDLER"] = "langchain"
 
 from modules.perception import PerceptionModule
 from modules.memory import MemoryModule
@@ -23,7 +23,7 @@ reasoning_module = ReasoningModule(llm=llm)
 execution_module = ExecutionModule(chat_llm=chat_llm, llm=llm, memory_module=memory_module)
 
 # Define the overall objective
-objective = "Create a SwiftUI gallery screen with pagination and a search bar."
+objective = "The objective is to create a versatile CLI tool that streamlines the process of completing, generating, and prioritizing tasks within an AI system. This tool will incorporate security/safety agents, task sequencing, parallel tasks, interim milestones, and real-time priority updates. By addressing key risks like data privacy, security, and ethical concerns, the CLI tool will ensure the successful deployment and operation of the autonomous agent while minimizing potential dangers. It should utilize OpenAI completion API using langchain chains."
 
 # Initialize tasks based on the objective
 reasoning_module.initialize_tasks(objective)
@@ -32,9 +32,9 @@ reasoning_module.initialize_tasks(objective)
 while True:
     # Get the current task from the ReasoningModule
     current_task = reasoning_module.get_current_task()
-    print("Current task:")
+    print("\n\nCurrent task:")
     pprint(current_task)
-    print("Task list:")
+    print("\n\nTask list:")
     pprint(reasoning_module.get_task_list())
 
     # If there are no more tasks, the objective is reached, and the loop can break
@@ -59,5 +59,3 @@ while True:
 
     # ReasoningModule analyzes the stored data and updates the task priorities or generates new tasks
     reasoning_module.update_tasks(memory_module.get_context_data(), objective)
-
-log.debug("Finishing the script")
