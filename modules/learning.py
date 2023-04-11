@@ -1,19 +1,29 @@
-from typing import List
 from langchain import LLMChain, PromptTemplate
 from langchain.llms.base import BaseLLM
+from modules.memory import MemoryModule
+from typing import List
 
 class LearningModule:
-    def __init__(self, llm, objective, verbose: bool = True):
-        self.objective = objective
-        self.learning_chain = LearningChain.from_llm(llm, objective, verbose)
+    def __init__(self, llm: BaseLLM, memory_module: MemoryModule, verbose: bool = True):
+        self.memory_module = memory_module
+        self.learning_chain = LearningChain.from_llm(llm, verbose)
 
-    def learn_from(self, memory: str, observation: str, completed_tasks: List[str], pending_tasks: List[str]) -> str:
+    def learn_from(
+        self,
+        observation: str,
+        completed_tasks: List[dict],
+        pending_tasks: List[dict]
+    ) -> str:
+        memory = self.memory_module.retrieve_related_information(observation)
+        objective = self.memory_module.objective
         return self.learning_chain.run(
-                completed_tasks=completed_tasks,
-                pending_tasks=pending_tasks,
-                last_output=observation,
-                context=memory
-                )
+            completed_tasks=completed_tasks,
+            pending_tasks=pending_tasks,
+            last_output=observation,
+            context=memory,
+            objective=objective,
+        )
+
 
 learning_template = """LearningAssistant is an AI specialized in information consolidation, part of a larger system that is solving a complex problem in multiple steps. LearningAssistant is provided the current information context, and the result of the latest step, and updates the context incorporating the result.
 LearningAssistant is also provided the list of completed and still pending tasks.
@@ -30,19 +40,23 @@ The list of pending tasks: {pending_tasks}
 Current context to update:
 {context}
 
-LearningAssistant will generate an updated context. This context will replace the current context.
+LearningAssistant will generate an updated context. This context will replace the current context. Context should be up to 500 characters.
+This context should reflect changes to the large system that needs to be made to achieve objective more efficiently, and should not contain any information that is not relevant to the objective.
 LearningAssistant: """
 
-learning_prompt = lambda objective: PromptTemplate(
-        template=learning_template,
-        partial_variables={"objective": objective},
-        input_variables=["completed_tasks", "pending_tasks", "last_output", "context"],
-        )
+learning_prompt = PromptTemplate(
+    template=learning_template,
+    input_variables=[
+        "completed_tasks",
+        "pending_tasks",
+        "last_output",
+        "context",
+        "objective",
+    ],
+)
+
 
 class LearningChain(LLMChain):
-
     @classmethod
-    def from_llm(cls, llm: BaseLLM, objective: str, verbose: bool = True):
-        return cls(prompt=learning_prompt(objective), llm=llm, verbose=verbose)
-
-
+    def from_llm(cls, llm: BaseLLM, verbose: bool = True):
+        return cls(prompt=learning_prompt, llm=llm, verbose=verbose)

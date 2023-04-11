@@ -1,28 +1,28 @@
+from langchain.agents import Tool
+from langchain.chains import ConversationalRetrievalChain
+from langchain.chat_models import ChatOpenAI
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.utilities import BashProcess
+from langchain.vectorstores import DeepLake
+from llama_index import download_loader
+from llama_index import GPTSimpleVectorIndex
+from llama_index.optimization.optimizer import SentenceEmbeddingOptimizer
+from modules.memory import MemoryModule
+from pathlib import Path
+from typing import List
 import os
 import re
 import shutil
-from pathlib import Path
-from typing import List
-from langchain.utilities import BashProcess
-from langchain.agents import Tool, load_tools
-from llama_index import Document, download_loader
-from llama_index import GPTSimpleVectorIndex
-from llama_index.optimization.optimizer import SentenceEmbeddingOptimizer
-from langchain.vectorstores import DeepLake
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.chat_models import ChatOpenAI
-from langchain.chains import ConversationalRetrievalChain
-
-from modules.memory import MemoryModule
 
 PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output/"
 
 def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
-  tools = load_tools(["searx-search", "terminal", "python_repl", "human"], llm=llm, searx_host="http://localhost:8080", unsecure=True)
+#   tools = load_tools(["python_repl"], llm=llm, searx_host="http://localhost:8080", unsecure=True)
+  tools = []
   return tools + [
-    #   write_tool(),
-    #   read_tool(),
+      write_tool(),
+      read_tool(),
     #   tree_tool(),
     #   mkdir_tool(),
     #   replace_content_tool(),

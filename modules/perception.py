@@ -1,44 +1,37 @@
-from langchain.chat_models import ChatOpenAI
-from langchain import LLMChain
-from langchain.prompts.chat import (
-    ChatPromptTemplate,
-    SystemMessagePromptTemplate,
-    HumanMessagePromptTemplate,
-)
-
+from langchain import LLMChain, PromptTemplate
+from langchain.llms import BaseLLM
 from modules.memory import MemoryModule
 
 class PerceptionModule:
-    def __init__(self, memory_module: MemoryModule, chat_model):
+    def __init__(self, llm: BaseLLM, memory_module: MemoryModule, verbose: bool = True):
+        self.task_enhancement_chain = TaskEnhancementChain.from_llm(llm, verbose)
         self.memory_module = memory_module
-        self.chat_model = chat_model
 
-    def process_task(self, task):
+    def process_task(self, task):  # sourcery skip: avoid-builtin-shadow
+        id = task["task_id"]
         name = task["task_name"]
         summary = self.memory_module.retrieve_related_information(name)
-        return {"task_name": name, "context": summary}
+        objective = self.memory_module.objective
+        name = self.task_enhancement_chain.run(objective=objective, context=summary, task=name)
+        return {"task_id": id, "task_name": name}
 
-    def process_text(self, text):
-        return self._process_text_nlp(text)
+    def process_result(self, text):
+        # TODO: Add processing for text
+        return text
 
-    def _process_text_nlp(self, text):
-        return self._process_nlp(
-            "You are a helpful AI that takes input text, summarizes and optimizes it to retain all essential details while reducing its length.",
-            text,
+class TaskEnhancementChain(LLMChain):
+
+    @classmethod
+    def from_llm(cls, llm: BaseLLM, verbose: bool = True) -> LLMChain:
+        template = (
+            "You are an task explainer AI tasked with preparing a task for an autonomous agent."
+            "Consider the ultimate objective of your team: {objective}."
+            "Task related context: {context}."
+            "Task to improve: {task}."
+            "Please rewrite task to be self contained and include all relevant information in as concise as possible way."
         )
-
-    def _process_task_nlp(self, text):
-        return self._process_nlp(
-            "You are a helpful AI that takes an input task, optimizes it to include all essential details, and reduces its length while maintaining its effectiveness. You should compress it as much as possible.",
-            text,
+        prompt = PromptTemplate(
+            template=template,
+            input_variables=["objective", "context", "task"],
         )
-
-    def _process_nlp(self, arg0, text):
-        template = arg0
-        system_message_prompt = SystemMessagePromptTemplate.from_template(template)
-        human_message_prompt = HumanMessagePromptTemplate.from_template("{text}")
-        chat_prompt = ChatPromptTemplate.from_messages(
-            [system_message_prompt, human_message_prompt]
-        )
-        chain = LLMChain(llm=self.chat_model, prompt=chat_prompt)
-        return chain.run(text)
+        return cls(prompt=prompt, llm=llm, verbose=verbose)

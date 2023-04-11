@@ -1,123 +1,98 @@
-from typing import Dict, List
-from langchain.chains import LLMChain
-from langchain.prompts import PromptTemplate
-from langchain.llms import BaseLLM
-from typing import List, Dict
-from pydantic import Field
-from langchain import LLMChain, PromptTemplate
-from langchain.agents import Tool
-from langchain.llms.base import BaseLLM
-from typing import List, Dict
-from langchain import LLMChain, PromptTemplate
-from langchain.llms.base import BaseLLM
-from modules.memory import MemoryModule
-from utils.helpers import *
 from collections import deque
-from modules.execution_tools import get_tools
+from langchain import LLMChain, PromptTemplate
+from langchain.chains import LLMChain
+from langchain.llms import BaseLLM
+from langchain.prompts import PromptTemplate
+from modules.memory import MemoryModule
+from typing import Dict, List
 
 class ReasoningModule:
-    def __init__(self, llm, objective, memory_module: MemoryModule, verbose: bool = True):
+    def __init__(self, llm, memory_module: MemoryModule, verbose: bool = True):
         self.task_list = deque()
         self.completed_task_list = deque()
-        self.objective = objective
         self.memory_module = memory_module
-        self.task_creation_chain = TaskCreationChain.from_llm(llm, objective, get_tools(llm, memory_module), verbose)
-        self.task_prioritization_chain = TaskPrioritizationChain.from_llm(llm, objective, verbose)
+        self.task_creation_chain = TaskCreationChain.from_llm(llm, verbose)
+        self.task_prioritization_chain = TaskPrioritizationChain.from_llm(llm, verbose)
 
     def initialize_tasks(self):
-        initial_tasks = self.task_creation_chain.generate_tasks()
-        self._set_tasks(initial_tasks)
+        first_task = "Do a research for the best way to achieve the objective."
+        self.task_list.append({"task_id": 1, "task_name": first_task})
 
-    def get_task_list(self):
-        return list(self.task_list)
-
-    def get_completed_task_list(self):
-        return list(self.completed_task_list)
-
-    def get_current_task(self):
-        return self.task_list[0] if self.task_list else None
-
-    def advance_to_next_task(self):
-        completed_task = self.task_list.pop(0)
-        self.completed_task_list.append(completed_task)
-
-    def update_tasks(self):
-        self._set_tasks(self.get_task_list())
-
-    def _set_tasks(self, updated_tasks):
-        result = self.task_prioritization_chain.prioritize_tasks(len(self.get_completed_task_list()), self.get_completed_task_list(), updated_tasks, self.memory_module.get_context())
-        self.task_list = result
-
-task_creation_template = """
-Act as an AI expert in task generation. Your objective is to create a concise list of tasks to accomplish the following objective: {objective}. 
-The AI system that will execute these tasks has access to a wide range of tools, and each task may use only one tool. 
-However, you don't need to specify which tool to use in the tasks. Available tools:
-
-{tool_strings}
-
-Please keep the list short, ensuring it's relevant and effective for a capable agent to complete. 
-Use the following format for your response:
-1. First task
-2. Second task
-
-Please note that the tasks can be applicable to any industry, domain, or context. 
-Now, generate the list of tasks.
-"""
-
-task_creation_prompt = lambda objective: PromptTemplate(
-        template=task_creation_template,
-        partial_variables={"objective": objective},
-        input_variables=["tool_strings"],
+    def update_tasks(self, task: dict, result: dict):
+        incomplete_tasks = [t["task_name"] for t in self.task_list]
+        task_description = task["task_name"]
+        incomplete_tasks = ", ".join(incomplete_tasks)
+        objective = self.memory_module.objective
+        response = self.task_creation_chain.run(result=result, task_description=task_description, incomplete_tasks=incomplete_tasks, objective=objective)
+        new_tasks = response.split('\n')
+        new_tasks = [{"task_name": task_name} for task_name in new_tasks if task_name.strip()]
+        this_task_id = int(task["task_id"])
+        task_id_counter = this_task_id
+        for new_task in new_tasks:
+            task_id_counter += 1
+            new_task.update({"task_id": task_id_counter})
+            self.task_list.append(task)
+        self.task_list = deque(
+            self.prioritize_tasks(this_task_id)
         )
 
+    def prioritize_tasks(self, this_task_id: int) -> List[Dict]:
+        """Prioritize tasks."""
+        task_names = [t["task_name"] for t in self.task_list]
+        objective = self.memory_module.objective
+        next_task_id = this_task_id + 1
+        response = self.task_prioritization_chain.run(task_names=task_names, next_task_id=next_task_id, objective=objective)
+        new_tasks = response.split('\n')
+        prioritized_task_list = []
+        for task_string in new_tasks:
+            if not task_string.strip():
+                continue
+            task_parts = task_string.strip().split(".", 1)
+            if len(task_parts) == 2:
+                task_id = task_parts[0].strip()
+                task_name = task_parts[1].strip()
+                prioritized_task_list.append({"task_id": task_id, "task_name": task_name})
+        return prioritized_task_list
 
 class TaskCreationChain(LLMChain):
-    tool_strings: str
+    """Chain to generates tasks."""
 
     @classmethod
-    def from_llm(cls, llm: BaseLLM, objective: str, tools: List[Tool] , verbose: bool = True):
-        tool_strings = "\n".join([f"  - {tool.name}: {tool.description}" for tool in tools])
-        return cls(prompt=task_creation_prompt(objective), llm=llm, verbose=verbose, tool_strings=tool_strings)
-
-    def generate_tasks(self) -> List[Dict]:
-        response = self.run(tool_strings=self.tool_strings)
-        return parse_task_list(response)
-
-task_prioritisation_template = """Act as a task reviewing and prioritization AI named Assistant, with the responsibility of refining the formatting and reordering the given tasks: 
-{pending_tasks} 
-
-Assistant has access to the list of completed tasks, current pending tasks, and the information context generated by the system thus far.
-Assistant will determine if the completed tasks and context are sufficient to produce a final answer. 
-If so, Assistant will communicate this using the exact format: Review: Can answer
-Assistant will not generate the final answer. 
-If there isn't enough information to answer, Assistant will create a new list of tasks, prioritized from most important to least. 
-The tasks will be numbered, starting with {next_task_id}, and follow this format: 
-Review: Must continue 
-1. First task 
-2. Second task
-
-To generate this list, Assistant will utilize the current pending tasks, removing tasks no longer necessary or adding new tasks if strictly required.
-
-The ultimate goal is: {objective}
-The tasks already completed include: 
-{completed_tasks}
-
-The information context generated so far is as follows: {context}
-"""
-
-task_prioritization_prompt = lambda objective: PromptTemplate(
-        template=task_prioritisation_template,
-        partial_variables={"objective": objective},
-        input_variables=["completed_tasks", "pending_tasks", "context", "next_task_id"],
+    def from_llm(cls, llm: BaseLLM, verbose: bool = True) -> LLMChain:
+        """Get the response parser."""
+        task_creation_template = (
+            "You are an task creation AI that uses the result of an execution agent"
+            " to create new tasks with the following objective: {objective},"
+            " The last completed task has the result: {result}."
+            " This result was based on this task description: {task_description}."
+            " These are incomplete tasks: {incomplete_tasks}."
+            " Based on the result, create new tasks to be completed"
+            " by the AI system that do not overlap with incomplete tasks."
+            " Return the tasks as an array."
         )
+        prompt = PromptTemplate(
+            template=task_creation_template,
+            input_variables=["result", "task_description", "incomplete_tasks", "objective"],
+        )
+        return cls(prompt=prompt, llm=llm, verbose=verbose)
 
 class TaskPrioritizationChain(LLMChain):
-    @classmethod
-    def from_llm(cls, llm: BaseLLM, objective: str, verbose: bool = True):
-        return cls(prompt=task_prioritization_prompt(objective), llm=llm, verbose=verbose)
+    """Chain to prioritize tasks."""
 
-    def prioritize_tasks(self, this_task_id: int, completed_tasks: List[str], pending_tasks: List[Dict], context: str) -> List[Dict]:
-        pending_tasks = [t["task_name"] for t in pending_tasks]
-        next_task_id = this_task_id + 1
-        response = self.run(completed_tasks=completed_tasks, pending_tasks=pending_tasks, context=context, next_task_id=next_task_id)
-        return parse_task_list(response)
+    @classmethod
+    def from_llm(cls, llm: BaseLLM, verbose: bool = True) -> LLMChain:
+        """Get the response parser."""
+        task_prioritization_template = (
+            "You are an task prioritization AI tasked with cleaning the formatting of and reprioritizing"
+            " the following tasks: {task_names}."
+            " Consider the ultimate objective of your team: {objective}."
+            " Do not remove any tasks. Return the result as a numbered list, like:"
+            " #. First task"
+            " #. Second task"
+            " Start the task list with number {next_task_id}."
+        )
+        prompt = PromptTemplate(
+            template=task_prioritization_template,
+            input_variables=["task_names", "next_task_id", "objective"],
+        )
+        return cls(prompt=prompt, llm=llm, verbose=verbose)
