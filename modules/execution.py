@@ -1,3 +1,4 @@
+from langchain import OpenAI
 from langchain.agents.agent import AgentExecutor
 from langchain.agents.chat.base import ChatAgent
 import re
@@ -15,6 +16,33 @@ from typing import List
 from pydantic import BaseModel, Field
 from langchain.agents import AgentExecutor, Tool
 from langchain.llms.base import BaseLLM
+from langchain.chains.summarize import load_summarize_chain
+from abc import abstractmethod
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
+import yaml
+from pydantic import BaseModel, root_validator
+
+from langchain.agents.tools import InvalidTool
+from langchain.callbacks.base import BaseCallbackManager
+from langchain.chains.base import Chain
+from langchain.chains.llm import LLMChain
+from langchain.input import get_color_mapping
+from langchain.prompts.base import BasePromptTemplate
+from langchain.prompts.few_shot import FewShotPromptTemplate
+from langchain.prompts.prompt import PromptTemplate
+from langchain.schema import (
+    AgentAction,
+    AgentFinish,
+    BaseLanguageModel,
+    BaseMessage,
+    BaseOutputParser,
+)
+from langchain.tools.base import BaseTool
+from langchain.utilities.asyncio import asyncio_timeout
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.docstore.document import Document
 
 from .execution_tools import get_tools
 
@@ -41,24 +69,24 @@ class ExecutionModule:
         agent = ExecutionAgent.from_llm_and_tools(llm=self.llm, tools=self.tools, objective=self.objective, verbose=verbose)
         return AgentExecutor.from_agent_and_tools(agent=agent, tools=self.tools, verbose=verbose)
 
+PREFIX = """ExecutionAssistant is a versatile AI model developed by OpenAI, which excels in executing a wide range of tasks within the context of a larger workflow.
+To ensure a focused and effective outcome, ExecutionAssistant concentrates solely on the current task, without attempting to perform further work. It is constantly learning, improving, and evolving to offer accurate and informative results.
+ExecutionAssistant is not engaging in a conversation but rather producing the output of executing a task within a larger workflow trying to accomplish the following objective: {objective}. It should focus only on the current task, and doesn't attempt to perform further work.
 
-PREFIX = """ExecutionAssistant is a general purpose AI model trained by OpenAI.
+Its primary goal is to determine the best approach to complete the task at hand, leveraging its own knowledge and the following tools:
 
-ExecutionAssistant is tasked with executing a single task within the context of a larger workflow trying to accomplish the following objective: {objective}. It should focus only on the current task, and doesn't attempt to perform further work.
-
-ExecutionAssistant is constantly learning and improving, and its capabilities are constantly evolving. It is able to process and understand large amounts of text, and can use this knowledge to provide accurate and informative responses to a wide range of questions.
-
-Overall, ExecutionAssistant is a powerful tool that can help with a wide range of tasks and provide valuable insights and information on a wide range of topics.
-ExecutionAssistant is not having a conversation with a user, but rather producing the output of executing a task within a larger workflow.
-
-TOOLS:
-------
-
-ExecutionAssistant has access to the following tools:"""
+"""
 FORMAT_INSTRUCTIONS = """
-Thought Process:
-----------------
 
+ExecutionAssistant follows this thought process and format:
+
+1. Determine if a tool is needed.
+   - If yes, choose an action from the available tools and provide the necessary input.
+   - If no, proceed to step 2.
+
+2. Observe the result of the action or provide a response to the user.
+
+Please remember to provide the current context and task when using ExecutionAssistant.
 ExecutionAssistant always uses the following thought process and format to execute its tasks:
 
 ```
@@ -74,7 +102,6 @@ When ExecutionAssistant has a response to say to the Human, or if it doesn't nee
 Thought: Do I need to use a tool? No
 {ai_prefix}: [your response here]
 ```"""
-
 SUFFIX = """Begin!
 
 Current context:
@@ -117,7 +144,7 @@ class ExecutionAgent(Agent):
         input_variables: Optional[List[str]] = None,
     ) -> PromptTemplate:
         tool_strings = "\n".join(
-            [f"> {tool.name}: {tool.description}" for tool in tools]
+            [f"  - '{tool.name}': {tool.description}" for tool in tools]
         )
         tool_names = ", ".join([tool.name for tool in tools])
         prefix = prefix.format(objective=objective)
@@ -136,6 +163,25 @@ class ExecutionAgent(Agent):
         action = match.group(1)
         action_input = match.group(2)
         return action.strip(), action_input.strip(" ").strip('"')
+
+    def _construct_scratchpad(
+        self, intermediate_steps: List[Tuple[AgentAction, str]]
+    ) -> Union[str, List[BaseMessage]]:
+        """Construct the scratchpad that lets the agent continue its thought process."""
+        thoughts = ""
+        for action, observation in intermediate_steps:
+            thoughts += action.log
+            thoughts += f"\n{self.observation_prefix}{observation}\n{self.llm_prefix}"
+
+        if len(thoughts) > 8000:
+            print(">>>>>Thoughts too long, summarizing<<<<<")
+            chain = load_summarize_chain(OpenAI(temperature=0, max_tokens=2000), chain_type="map_reduce")
+            text_splitter = CharacterTextSplitter()
+            texts = text_splitter.split_text(thoughts)
+            docs = [Document(page_content=t) for t in texts[:3]]
+            thoughts = chain.run(docs)
+
+        return thoughts
 
     @classmethod
     def from_llm_and_tools(

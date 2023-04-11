@@ -93,5 +93,8 @@ def main():
         reasoning_module.update_tasks()
         print("\033[1;33mUpdated tasks based on stored data\033[0m")
 
+    final_answer = execution_module.execute("Provide the final answer", memory_module.get_context())
+    print_end(final_answer)
+
 if __name__ == "__main__":
     main()

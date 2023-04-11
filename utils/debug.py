@@ -20,9 +20,10 @@ class DebugCallbackHandler(OpenAICallbackHandler):
         self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
     ) -> None:
         """Print out the prompts with colors."""
-        print("\033[1;34m> Prompts:\033[0m")
-        for prompt in prompts:
-            print(f"\033[1;34m{prompt}\033[0m")
+        # print("\033[1;34m> Prompts:\033[0m")
+        # for prompt in prompts:
+        #     print(f"\033[1;34m{prompt}\033[0m")
+        pass
 
     def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
         OpenAICallbackHandler.on_llm_end(self, response, **kwargs)

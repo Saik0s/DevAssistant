@@ -8,13 +8,18 @@ from langchain.agents import Tool, load_tools
 from llama_index import Document, download_loader
 from llama_index import GPTSimpleVectorIndex
 from llama_index.optimization.optimizer import SentenceEmbeddingOptimizer
+from langchain.vectorstores import DeepLake
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.chat_models import ChatOpenAI
+from langchain.chains import ConversationalRetrievalChain
 
 from modules.memory import MemoryModule
 
 PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output/"
 
 def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
-  tools = load_tools(["searx-search", "terminal", "requests", "python_repl", "human"], llm=llm, searx_host="http://localhost:8080", unsecure=True)
+  tools = load_tools(["searx-search", "terminal", "python_repl", "human"], llm=llm, searx_host="http://localhost:8080", unsecure=True)
   return tools + [
     #   write_tool(),
     #   read_tool(),
@@ -27,9 +32,61 @@ def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
     #   append_tool(),
       search_memory_tool(memory_module),
       read_web_readability_tool(),
+      github_tool(),
     #   read_remote_depth_tool(),
     #   read_web_unstructured_tool(),
   ]
+
+def github_tool() -> Tool:
+    def load_github_repo(input_str: str) -> str:
+        try:
+            input_lines = input_str.split("\n")
+            url = input_lines[0]
+            branch = input_lines[1]
+            question = input_lines[2]
+
+            # Create a unique identifier for the repository
+            repo_id = f"{url}-{branch}"
+
+            # Check if the vector is already stored locally
+            local_vector_path = f"{PREFIX_PATH}/vectors/{repo_id}"
+
+            embeddings = OpenAIEmbeddings()
+            if os.path.exists(local_vector_path):
+                db = DeepLake(dataset_path=local_vector_path, read_only=True, embedding_function=embeddings)
+            else:
+                # Load repository by URL and branch
+                GithubRepoLoader = download_loader("GithubRepoLoader")
+                loader = GithubRepoLoader(url=url, branch=branch)
+                documents = loader.load_data()
+                docs = [doc.to_langchain_format() for doc in documents]
+
+                text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+                texts = text_splitter.split_documents(docs)
+
+                db = DeepLake.from_documents(texts, embeddings, dataset_path=local_vector_path)
+
+            retriever = db.as_retriever()
+            retriever.search_kwargs['distance_metric'] = 'cos'
+            retriever.search_kwargs['fetch_k'] = 100
+            retriever.search_kwargs['maximal_marginal_relevance'] = True
+            retriever.search_kwargs['k'] = 20
+
+            model = ChatOpenAI(model='gpt-4') # 'gpt-3.5-turbo',
+            qa = ConversationalRetrievalChain.from_llm(model,retriever=retriever)
+
+            result = qa({"question": question, "chat_history": []})
+
+            return result['answer']
+
+        except Exception as e:
+            return str(e)
+
+    return Tool(
+        name="github",
+        description="Load a GitHub repository by URL and ask a provided question. Input format: url\\nbranch\\nquestion.",
+        func=load_github_repo,
+    )
 
 def read_remote_depth_tool() -> Tool:
     def read_remote_depth(input_str: str) -> str:

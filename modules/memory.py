@@ -25,8 +25,8 @@ class MemoryModule:
 
     def retrieve_related_information(self, query, top_k=5):
         try:
-            search_results = self.vectorstore.similarity_search(query, k=top_k)
-            return "\n".join([result.page_content for result in search_results])
+            search_results = self.vectorstore.similarity_search_with_score(query, k=top_k)
+            return "\n".join([f"{score}: {doc.page_content}" for doc, score in search_results])
         except Exception as e:
             print(f"An error occurred during similarity search: {e}")
             return ""

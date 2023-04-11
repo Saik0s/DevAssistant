@@ -14,17 +14,9 @@ class PerceptionModule:
         self.chat_model = chat_model
 
     def process_task(self, task):
-        summary = self.memory_module.get_context()
         name = task["task_name"]
+        summary = self.memory_module.retrieve_related_information(name)
         return {"task_name": name, "context": summary}
-
-        # Process the task using NLP techniques or AI models
-        # processed_task = self._process_task_nlp(text)
-
-        # Retrieve related information from the MemoryModule
-        # related_information = self.memory_module.retrieve_related_information(text)
-
-        # return f"Related Information: {related_information}\n\nTask: {processed_task}"
 
     def process_text(self, text):
         return self._process_text_nlp(text)
