@@ -3,3 +3,4 @@ history.json
 chroma
 runs
 .prompt
+.DS_Store
