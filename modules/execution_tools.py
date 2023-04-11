@@ -14,21 +14,21 @@ from modules.memory import MemoryModule
 PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output/"
 
 def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
-  tools = load_tools(["searx-search", "searx-search-results-json"], llm=llm, searx_host="http://localhost:8080", unsecure=True)
+  tools = load_tools(["searx-search", "terminal", "requests", "python_repl", "human"], llm=llm, searx_host="http://localhost:8080", unsecure=True)
   return tools + [
-      write_tool(),
-      read_tool(),
-      tree_tool(),
-      mkdir_tool(),
-      replace_content_tool(),
-      copy_tool(),
-      move_tool(),
-      delete_tool(),
-      append_tool(),
+    #   write_tool(),
+    #   read_tool(),
+    #   tree_tool(),
+    #   mkdir_tool(),
+    #   replace_content_tool(),
+    #   copy_tool(),
+    #   move_tool(),
+    #   delete_tool(),
+    #   append_tool(),
       search_memory_tool(memory_module),
       read_web_readability_tool(),
-      read_remote_depth_tool(),
-      read_web_unstructured_tool(),
+    #   read_remote_depth_tool(),
+    #   read_web_unstructured_tool(),
   ]
 
 def read_remote_depth_tool() -> Tool:

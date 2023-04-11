@@ -13,10 +13,10 @@ class PerceptionModule:
         self.memory_module = memory_module
         self.chat_model = chat_model
 
-    def process_task(self, text):
+    def process_task(self, task):
         summary = self.memory_module.get_context()
-        text = f"Project State Summary: {summary}\n\nTask: {text}"
-        return text
+        name = task["task_name"]
+        return {"task_name": name, "context": summary}
 
         # Process the task using NLP techniques or AI models
         # processed_task = self._process_task_nlp(text)

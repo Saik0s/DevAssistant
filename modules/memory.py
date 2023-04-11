@@ -39,7 +39,7 @@ class MemoryModule:
 
     def store(self, text: str):
         self._add_to_vectorstore(self.vectorstore, [text])
-        self._update_project_summary(text)
+        self.project_summary = text
 
     def _create_vectorstore(self, collection_name: str):
         embeddings = OpenAIEmbeddings()
