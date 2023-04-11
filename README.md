@@ -27,6 +27,8 @@ DevAssistant is built on five main components that work together to achieve a gi
 
 Before you can start using DevAssistant, you need to set up the environment by obtaining an OpenAI API key and starting a local Searxng instance.
 
+The [langchain-visualizer](https://github.com/amosjyng/langchain-visualizer) is utilized to display all the LLM calls executed throughout the script's runtime.
+
 Run `python main.py`
 
 ### Starting a Local Searxng Instance
