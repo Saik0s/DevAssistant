@@ -46,6 +46,7 @@ Current context to update:
 {context}
 
 EvaluationModuleAssistant must answer question have that the system completed its ultimate objective, if yes provide final answer for the ultimate task.
+Remeber to be strict, if EvaluationModuleAssistant not sure that the system had completed the ultimate objective, EvaluationModuleAssistant must answer NO.
 Expected answer: YES - the final answer for the ultimate task, or NO
 EvaluationModuleAssistant: """
 
