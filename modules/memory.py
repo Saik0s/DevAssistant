@@ -3,7 +3,6 @@ from langchain.text_splitter import NLTKTextSplitter
 from langchain.vectorstores import Chroma
 from typing import List
 
-
 class MemoryModule:
     def __init__(self, llm: BaseLLM, vectorstore: Chroma, verbose: bool = True):
         self.llm = llm
@@ -36,5 +35,8 @@ class MemoryModule:
         for text in texts:
             splitter = NLTKTextSplitter(chunk_size=1000, chunk_overlap=0)
             text_chunks = splitter.split_text(text)
-            vectorstore.add_texts(text_chunks)
+            try:
+                vectorstore.add_texts(text_chunks)
+            except Exception as e:
+                print(f"An error occurred during vectorstore.add_texts: {e}")
         vectorstore.persist()

@@ -1,4 +1,5 @@
 from langchain.agents import Tool
+from langchain.utilities import BashProcess
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings.openai import OpenAIEmbeddings
@@ -21,6 +22,7 @@ def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
 #   tools = load_tools(["python_repl"], llm=llm, searx_host="http://localhost:8080", unsecure=True)
   tools = []
   return tools + [
+      bash_tool(),
       write_tool(),
       read_tool(),
     #   tree_tool(),
@@ -36,6 +38,14 @@ def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
     #   read_remote_depth_tool(),
     #   read_web_unstructured_tool(),
   ]
+
+def bash_tool() -> Tool:
+    bash = BashProcess()
+    return Tool(
+        name="BASH",
+        description="Executes bash commands and returns the output",
+        func=bash.run
+    )
 
 def github_tool() -> Tool:
     def load_github_repo(input_str: str) -> str:
@@ -171,7 +181,7 @@ def write_tool() -> Tool:
         except Exception as e:
             return str(e)
     return Tool(
-        name="write",
+        name="FILE.WRITE",
         description="Write content to a file. Input first line is the relative path, the rest is the content.",
         func=write_file,
     )
@@ -186,7 +196,7 @@ def read_tool() -> Tool:
         except Exception as e:
             return str(e)
     return Tool(
-        name="read",
+        name="FILE.READ",
         description="Read content from a file. Input is the relative path.",
         func=read_file,
     )

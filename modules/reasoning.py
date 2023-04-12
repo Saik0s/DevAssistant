@@ -15,23 +15,27 @@ class ReasoningModule:
         self.task_prioritization_chain = TaskPrioritizationChain.from_llm(llm, verbose)
 
     def initialize_tasks(self):
-        first_task = "Do a research for the best way to achieve the objective."
+        first_task = "Do a research for the most optimal way to achieve the objective. max 500 characters"
         self.task_list.append({"task_id": 1, "task_name": first_task})
 
     def update_tasks(self, task: dict, result: dict):
         incomplete_tasks = [t["task_name"] for t in self.task_list]
         task_description = task["task_name"]
         incomplete_tasks = ", ".join(incomplete_tasks)
+        if len(self.task_list) == 0:
+            incomplete_tasks = "all"
         objective = self.memory_module.objective
         response = self.task_creation_chain.run(result=result, task_description=task_description, incomplete_tasks=incomplete_tasks, objective=objective)
-        new_tasks = response.split('\n')
+        new_tasks = response.strip().split('\n')
         new_tasks = [{"task_name": task_name} for task_name in new_tasks if task_name.strip()]
         this_task_id = int(task["task_id"])
         task_id_counter = this_task_id
+
         for new_task in new_tasks:
             task_id_counter += 1
             new_task.update({"task_id": task_id_counter})
-            self.task_list.append(task)
+            self.task_list.append(new_task)
+
         self.task_list = deque(
             self.prioritize_tasks(this_task_id)
         )
@@ -62,13 +66,15 @@ class TaskCreationChain(LLMChain):
         """Get the response parser."""
         task_creation_template = (
             "You are an task creation AI that uses the result of an execution agent"
+            "running on the AI system following the instructions: use WBS format with 3 levels depth to create a task list, focus on the objective, all tasks must be minimal and nessessary to achieve the ultimate goal. Not doing anything far from ultimate goal. keep time-value ratio balance. not spend more than 30 percent in research, use authorized tools. limitation at 100 tassk,"
             " to create new tasks with the following objective: {objective},"
             " The last completed task has the result: {result}."
             " This result was based on this task description: {task_description}."
             " These are incomplete tasks: {incomplete_tasks}."
             " Based on the result, create new tasks to be completed"
             " by the AI system that do not overlap with incomplete tasks."
-            " Return the tasks as an array."
+            " Ouput format: a task list as an WBS template, no any explanation needed"
+            " #task number. task name"
         )
         prompt = PromptTemplate(
             template=task_creation_template,

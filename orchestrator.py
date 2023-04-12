@@ -1,6 +1,7 @@
 from langchain.chains.base import Chain
 from langchain.llms import BaseLLM
 from langchain.vectorstores import Chroma
+from modules.evaluation import EvaluationModule
 from modules.execution import ExecutionModule
 from modules.learning import LearningModule
 from modules.memory import MemoryModule
@@ -15,6 +16,7 @@ class AgentOrchestrator(Chain):
     learning_module:  LearningModule
     reasoning_module:  ReasoningModule
     execution_module:  ExecutionModule
+    evaluation_module:  EvaluationModule
 
     max_iterations: Optional[int] = None
 
@@ -71,6 +73,16 @@ class AgentOrchestrator(Chain):
                 processed_execution_result = self.perception_module.process_result(execution_result)
                 self.print_task_result(processed_execution_result)
 
+                ## Evaluate the task result
+                is_finish, final_answer = self.evaluation_module.evaluate_from(
+                    observation=processed_execution_result,
+                    completed_tasks=self.reasoning_module.completed_task_list,
+                    pending_tasks=self.reasoning_module.task_list,
+                )
+
+                if is_finish:
+                    break
+
                 new_memory = self.learning_module.learn_from(
                     observation=processed_execution_result,
                     completed_tasks=self.reasoning_module.completed_task_list,
@@ -89,8 +101,7 @@ class AgentOrchestrator(Chain):
             if self.max_iterations is not None and num_iters == self.max_iterations:
                 print("\033[91m\033[1m" + "\n*****TASK ENDING*****\n" + "\033[0m\033[0m")
                 break
-
-        final_answer = self.execution_module.execute({"task_id": 999, "task_name": "Provide the final answer"})
+            
         self.print_end(final_answer)
 
         return {}
@@ -109,6 +120,7 @@ class AgentOrchestrator(Chain):
         learning_module = LearningModule(llm, memory_module=memory_module, verbose=verbose)
         reasoning_module = ReasoningModule(llm, memory_module=memory_module, verbose=verbose)
         execution_module = ExecutionModule(llm, memory_module=memory_module, verbose=verbose)
+        evaluation_module = EvaluationModule(llm, memory_module=memory_module, verbose=verbose)
 
         return cls(
             memory_module=memory_module,
@@ -116,5 +128,6 @@ class AgentOrchestrator(Chain):
             reasoning_module=reasoning_module,
             learning_module=learning_module,
             execution_module=execution_module,
+            evaluation_module=evaluation_module,
             **kwargs
         )

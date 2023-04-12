@@ -129,6 +129,10 @@ class ExecutionAgent(Agent):
             raise ValueError(f"Could not parse LLM output: `{llm_output}`")
         action = match[1]
         action_input = match[2]
+        if action:
+            slugs = llm_output.split("Action Input:")
+            action_input =  slugs[-1]
+            
         return action.strip(), action_input.strip(" ").strip('"')
 
     def _construct_scratchpad(
