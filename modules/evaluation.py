@@ -45,7 +45,7 @@ The list of pending tasks: {pending_tasks}
 Current context to update:
 {context}
 
-EvaluationModuleAssistant will anser question is that the system archive its ultimate objective, and provide final answer for the ultimate task.
+EvaluationModuleAssistant must answer question have that the system completed its ultimate objective, if yes provide final answer for the ultimate task.
 Expected answer: YES - the final answer for the ultimate task, or NO
 EvaluationModuleAssistant: """
 

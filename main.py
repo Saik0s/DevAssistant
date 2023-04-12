@@ -8,13 +8,7 @@ from typing import Optional
 # import utils.debug
 
 OBJECTIVE = (
-    "The goal is to develop a user-friendly SwiftUI gallery screen that integrates The Composable "
-    "Architecture from Point-Free, presenting a grid-like gallery of images fetched from an API. "
-    "The feature should support pagination and search functionality, and enable users to like "
-    "images while showing the like status and count for each image. By leveraging The Composable "
-    "Architecture, the resulting feature will be modular, maintainable, and thoroughly tested, "
-    "ensuring a smooth user experience, efficient memory usage, and adaptability across various "
-    "screen sizes and orientations."
+    "Write a program that takes 2 number as input and outputs the sum of the two numbers, save the program as sum.py. write tests for the program and run the tests, make sure the tests pass."
 )
 
 verbose = False
