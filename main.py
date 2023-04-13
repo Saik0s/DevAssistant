@@ -1,6 +1,8 @@
 import sys
 import pinecone
 import os
+import random
+import string
 import langchain_visualizer
 from typing import Optional
 from orchestrator import AgentOrchestrator
@@ -29,7 +31,9 @@ pinecone_index_name = os.environ["PINECONE_INDEX_NAME"]
 verbose = True
 max_iterations: Optional[int] = None
 
-collection_name = "dev_assistant"
+random_id = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+collection_name = f"dev_assistant_{random_id}"
+print(f"Using collection name: {collection_name}")
 
 
 ####################################################################################################
