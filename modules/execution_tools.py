@@ -255,16 +255,16 @@ def apply_patch_tool() -> Tool:
                 file.write(input_str)
 
             bash = BashProcess()
-            result = bash.run(f"patch -p0 -i {patch_file}")
+            result = bash.run(f"cd {PREFIX_PATH} && patch -p1 -u -f -i temp_patch_file.patch")
 
             os.remove(patch_file)
-            return f"Patch applied successfully:\n{result}"
+            return f"Patch applied:\n{result}"
         except Exception as e:
             return str(e)
 
     return Tool(
         name="apply patch",
-        description="Apply a patch to the current folder. Input is the patch content.",
+        description="Apply a patch to the current folder. Input is the patch file content.",
         func=apply_patch,
     )
 
