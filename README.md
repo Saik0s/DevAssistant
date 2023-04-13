@@ -10,10 +10,10 @@ The main entry point of the project is `main.py`, which initializes the necessar
 
 To run the project, first set the required environment variables:
 
-- `OPENAIAPIKEY`: Your OpenAI API key.
-- `PINECONEAPIKEY`: Your Pinecone API key.
-- `PINECONEENVIRONMENT`: The Pinecone environment to use.
-- `PINECONEINDEXNAME`: The Pinecone index name to use.
+- `OPENAI_API_KEY`: Your OpenAI API key.
+- `PINECONE_API_KEY`: Your Pinecone API key.
+- `PINECONE_ENVIRONMENT`: The Pinecone environment to use.
+- `PINECONE_INDEX_NAME`: The Pinecone index name to use.
 
 Install the required packages from `requirements.txt`:
 ```bash
