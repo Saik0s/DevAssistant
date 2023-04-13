@@ -37,9 +37,9 @@ def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
         search_memory_tool(memory_module),
         # read_web_readability_tool(),
         # github_tool(),
-        read_remote_depth_tool(),
+        # read_remote_depth_tool(),
         apply_patch_tool(),
-        #   read_web_unstructured_tool(),
+        read_web_unstructured_tool(),
         bf4_qa_tool(),
         directory_qa_tool(),
     ]
@@ -166,7 +166,7 @@ def read_remote_depth_tool() -> Tool:
             depth = int(input_lines[1])
             query = input_lines[2]
             RemoteDepthReader = download_loader("RemoteDepthReader")
-            loader = RemoteDepthReader(depth=depth)
+            loader = RemoteDepthReader(depth=depth, domain_lock=True)
             documents = loader.load_data(url=url)
             index = GPTSimpleVectorIndex.from_documents(documents)
             return index.query(query, optimizer=SentenceEmbeddingOptimizer(percentile_cutoff=0.5))
