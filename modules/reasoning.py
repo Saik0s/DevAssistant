@@ -8,7 +8,7 @@ from typing import Dict, List
 
 
 class ReasoningModule:
-    first_task = "Analyze objective"
+    first_task = "Analyze objective for the most optimal way to achieve it. max 500 characters"
 
     def __init__(self, llm, memory_module: MemoryModule, verbose: bool = True):
         self.task_list = deque()
@@ -24,6 +24,8 @@ class ReasoningModule:
         incomplete_tasks = [t["task_name"] for t in self.task_list]
         task_description = task["task_name"]
         incomplete_tasks = "\n".join(incomplete_tasks)
+        if len(self.task_list) == 0:
+            incomplete_tasks = "all"
         objective = self.memory_module.objective
         response = self.task_creation_chain.run(
             result=result, task_description=task_description, incomplete_tasks=incomplete_tasks, objective=objective
@@ -32,11 +34,15 @@ class ReasoningModule:
         new_tasks = [{"task_name": task_name} for task_name in new_tasks if task_name.strip()]
         this_task_id = int("".join(filter(str.isdigit, task["task_id"]))) if isinstance(task["task_id"], str) else task["task_id"]
         task_id_counter = this_task_id
+
         for new_task in new_tasks:
             task_id_counter += 1
             new_task.update({"task_id": task_id_counter})
-            self.task_list.append(task)
-        self.task_list = deque(self.prioritize_tasks(this_task_id))
+            self.task_list.append(new_task)
+
+        self.task_list = deque(
+            self.prioritize_tasks(this_task_id)
+        )
 
     def prioritize_tasks(self, this_task_id: int) -> List[Dict]:
         """Prioritize tasks."""
@@ -67,12 +73,16 @@ class TaskCreationChain(LLMChain):
         task_creation_template = (
             "You are an task creation AI that uses the result of an execution agent"
             " to create new tasks with the following objective: {objective}.\n"
+            "Use WBS format with 3 levels depth to create a task list, focus on the objective,"
+            " all tasks must be minimal and nessessary to achieve the ultimate goal."
+            " Not doing anything far from ultimate goal. keep time-value ratio balance."
+            " Do not spend more than 30 percent in research, use authorized tools. limitation at 100 tasks.\n"
             "The last completed task has the result: {result}.\n"
             "This result was based on this task description: {task_description}.\n"
             "These are incomplete tasks: \n{incomplete_tasks}\n"
             "Based on the result, create new tasks to be completed"
             " by the AI system that do not overlap with incomplete tasks.\n"
-            "Return the tasks as an array."
+            "Return the tasks as an array.\n"
         )
         prompt = PromptTemplate(
             template=task_creation_template,

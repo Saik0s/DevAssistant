@@ -3,6 +3,7 @@ import re
 import os
 from typing import List
 from pathlib import Path
+from langchain.utilities import BashProcess
 from modules.memory import MemoryModule
 from llama_index.optimization.optimizer import SentenceEmbeddingOptimizer
 from llama_index import GPTSimpleVectorIndex
@@ -20,11 +21,11 @@ from datetime import datetime
 current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
 PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output_{current_datetime}/"
 
-
 def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
     tools = load_tools(["python_repl"], llm=llm, searx_host="http://localhost:8080", unsecure=True)
     # tools = []
     return tools + [
+        bash_tool(),
         write_tool(),
         read_tool(),
         #   tree_tool(),
@@ -75,8 +76,6 @@ def parse_lines(input_str):  # sourcery skip: raise-specific-error
     return lines
 
 
-
-
 def todo_tool() -> Tool:
     todo_prompt = PromptTemplate.from_template(
         "You are a planner who is an expert at coming up with a todo list for a given objective. Come up with a todo list for this objective: {objective}"
@@ -125,6 +124,13 @@ def directory_qa_tool() -> Tool:
         description="Useful when you want answer questions about the files in your local directory.",
     )
 
+def bash_tool() -> Tool:
+    bash = BashProcess()
+    return Tool(
+        name="BASH",
+        description="Executes bash commands and returns the output",
+        func=bash.run
+    )
 
 def github_tool() -> Tool:
     def load_github_repo(input_str: str) -> str:
@@ -266,7 +272,7 @@ def write_tool() -> Tool:
             return str(e)
 
     return Tool(
-        name="write",
+        name="FILE.WRITE",
         description="Write content to a file. Input first line is the relative path, the rest is the content.",
         func=write_file,
     )
@@ -305,7 +311,7 @@ def read_tool() -> Tool:
             return str(e)
 
     return Tool(
-        name="read",
+        name="FILE.READ",
         description="Read content from a file. Input is the relative path.",
         func=read_file,
     )

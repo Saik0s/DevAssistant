@@ -3,7 +3,6 @@ from langchain.text_splitter import NLTKTextSplitter, Document
 from langchain.vectorstores import Pinecone
 from typing import List
 
-
 class MemoryModule:
     def __init__(self, llm: BaseLLM, vectorstore: Pinecone, verbose: bool = True):
         self.llm = llm

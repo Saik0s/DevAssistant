@@ -12,8 +12,7 @@ from langchain.embeddings import OpenAIEmbeddings
 
 if "--test" in sys.argv:
     OBJECTIVE = (
-        "Create a simple project that uses next.js and python for the backend."
-        " It should have a chat interface and subscribe to new messages in real time."
+        "Write a program that takes 2 number as input and outputs the sum of the two numbers, save the program as sum.py. write tests for the program and run the tests, make sure the tests pass."
     )
 else:
     OBJECTIVE = input("Please enter the objective: ")

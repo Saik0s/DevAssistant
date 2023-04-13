@@ -1,5 +1,6 @@
 from langchain import LLMChain, PromptTemplate
 from langchain.llms import BaseLLM
+from modules.execution_tools import get_tools
 from modules.memory import MemoryModule
 
 
@@ -25,7 +26,8 @@ class TaskEnhancementChain(LLMChain):
     @classmethod
     def from_llm(cls, llm: BaseLLM, verbose: bool = True) -> LLMChain:
         template = (
-            "You are an task improver Assistant.\n"
+            "You are an task improver Assistant for an autonomous agent.\n"
+            "Autonomous agent has limited ability to access to authorzied tools and resources such as internet, bash, filesystem.\n"
             "Consider the ultimate objective of your team: {objective}\n"
             "Task related context: \n{context}\n"
             "Task: {task}.\n"
