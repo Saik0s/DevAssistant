@@ -1,6 +1,6 @@
 from langchain.chains.base import Chain
 from langchain.llms import BaseLLM
-from langchain.vectorstores import Chroma
+from langchain.vectorstores import Pinecone
 from modules.execution import ExecutionModule
 from modules.learning import LearningModule
 from modules.memory import MemoryModule
@@ -67,6 +67,9 @@ class AgentOrchestrator(Chain):
                 execution_result = self.execution_module.execute(processed_task)
                 self.print_task_result(execution_result)
 
+                self.memory_module.store_result(execution_result, processed_task)
+                print("\033[1;34mSaved new result\033[0m")
+
                 # Process the execution result using PerceptionModule before storing it in the MemoryModule
                 processed_execution_result = self.perception_module.process_result(execution_result)
                 self.print_task_result(processed_execution_result)
@@ -99,7 +102,7 @@ class AgentOrchestrator(Chain):
     def from_llm(
         cls,
         llm: BaseLLM,
-        vectorstore: Chroma,
+        vectorstore: Pinecone,
         verbose: bool = False,
         **kwargs
     ) -> "AgentOrchestrator":

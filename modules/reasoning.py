@@ -15,7 +15,7 @@ class ReasoningModule:
         self.task_prioritization_chain = TaskPrioritizationChain.from_llm(llm, verbose)
 
     def initialize_tasks(self):
-        first_task = "Do a research for the best way to achieve the objective."
+        first_task = "Make a todo list"
         self.task_list.append({"task_id": 1, "task_name": first_task})
 
     def update_tasks(self, task: dict, result: dict):
@@ -62,13 +62,13 @@ class TaskCreationChain(LLMChain):
         """Get the response parser."""
         task_creation_template = (
             "You are an task creation AI that uses the result of an execution agent"
-            " to create new tasks with the following objective: {objective},"
-            " The last completed task has the result: {result}."
-            " This result was based on this task description: {task_description}."
-            " These are incomplete tasks: {incomplete_tasks}."
-            " Based on the result, create new tasks to be completed"
-            " by the AI system that do not overlap with incomplete tasks."
-            " Return the tasks as an array."
+            " to create new tasks with the following objective: {objective}.\n"
+            "The last completed task has the result: {result}.\n"
+            "This result was based on this task description: {task_description}.\n"
+            "These are incomplete tasks: {incomplete_tasks}.\n"
+            "Based on the result, create new tasks to be completed"
+            " by the AI system that do not overlap with incomplete tasks.\n"
+            "Return the tasks as an array."
         )
         prompt = PromptTemplate(
             template=task_creation_template,
@@ -84,12 +84,12 @@ class TaskPrioritizationChain(LLMChain):
         """Get the response parser."""
         task_prioritization_template = (
             "You are an task prioritization AI tasked with cleaning the formatting of and reprioritizing"
-            " the following tasks: {task_names}."
-            " Consider the ultimate objective of your team: {objective}."
-            " Do not remove any tasks. Return the result as a numbered list, like:"
-            " #. First task"
-            " #. Second task"
-            " Start the task list with number {next_task_id}."
+            " the following tasks: {task_names}.\n"
+            "Consider the ultimate objective of your team: {objective}.\n"
+            "Do not remove any tasks. Return the result as a numbered list, like:\n"
+            "#. First task\n"
+            "#. Second task\n"
+            "Start the task list with number {next_task_id}.\n"
         )
         prompt = PromptTemplate(
             template=task_prioritization_template,

@@ -24,11 +24,11 @@ class TaskEnhancementChain(LLMChain):
     @classmethod
     def from_llm(cls, llm: BaseLLM, verbose: bool = True) -> LLMChain:
         template = (
-            "You are an task explainer AI tasked with preparing a task for an autonomous agent."
-            "Consider the ultimate objective of your team: {objective}."
-            "Task related context: {context}."
-            "Task to improve: {task}."
-            "Please rewrite task to be self contained and include all relevant information in as concise as possible way."
+            "You are an task improver Assistant.\n"
+            "Consider the ultimate objective of your team: {objective}.\n"
+            "Task related context: {context}.\n"
+            "Task: {task}.\n"
+            "Now write this task and add one sentence description of how end result should look like.\n"
         )
         prompt = PromptTemplate(
             template=template,

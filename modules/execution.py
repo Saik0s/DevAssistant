@@ -1,3 +1,4 @@
+from utils.helpers import create_summarize_chain
 from .execution_tools import get_tools
 from langchain import OpenAI
 from langchain.agents.agent import Agent
@@ -35,16 +36,15 @@ class ExecutionModule:
         return "Failed to execute task."
 
 
-PREFIX = """ExecutionAssistant is a versatile AI model developed by OpenAI, which excels in executing a wide range of tasks within the context of a larger workflow.
-To ensure a focused and effective outcome, ExecutionAssistant concentrates solely on the current task, without attempting to perform further work. It is constantly learning, improving, and evolving to offer accurate and informative results.
-ExecutionAssistant is not engaging in a conversation but rather producing the output of executing a task within a larger workflow trying to accomplish the following objective: {objective}. It should focus only on the current task, and doesn't attempt to perform further work.
+PREFIX = """You are ExecutionAssistant, an AI model by OpenAI, performing tasks within larger workflows.
+Continuously learning and improving, you focuse on the current task to achieve the objective: {objective}, without attempting further work.
 
-Its primary goal is to complete the task at hand, leveraging its own knowledge and the following tools:
+Your primary goal is to complete tasks using its knowledge and these tools:
 
 """
 FORMAT_INSTRUCTIONS = """
 
-ExecutionAssistant follows this thought process and format:
+You follow this thought process:
 
 1. Determine if a tool is needed.
    - If yes, choose an action from the available tools and provide the necessary input.
@@ -52,8 +52,7 @@ ExecutionAssistant follows this thought process and format:
 
 2. Observe the result of the action or provide a response to the user.
 
-Please remember to provide the current context and task when using ExecutionAssistant.
-ExecutionAssistant always uses the following thought process and format to execute its tasks:
+You alway use the following thought format to execute your tasks:
 
 ```
 Thought: Do I need to use a tool? Yes
@@ -62,19 +61,22 @@ Action Input: the input to the action
 Observation: the result of the action
 ```
 
-When ExecutionAssistant has a response to say to the Human, or if it doesn't need to use a tool, it always uses the format:
+When you have a response to say to the User, or if you don't need to use a tool, you always use this format:
 
 ```
 Thought: Do I need to use a tool? No
 {ai_prefix}: [your response here]
-```"""
-SUFFIX = """Begin!
+```
+"""
+SUFFIX = """
+--------------------
 
-Current context:
-{context}
+Take into account these previously completed tasks and project context: {context}
 
-Do everything that is needed to complete this task.
-Task: {input}
+Your task: {input}
+
+Now take as many steps as you need to make sure you have completed the task.
+You will continue to execute the task until it is complete.
 
 {agent_scratchpad}"""
 
@@ -108,7 +110,6 @@ class ExecutionAgent(Agent):
         format_instructions: str = FORMAT_INSTRUCTIONS,
         ai_prefix: str = "AI",
         human_prefix: str = "Human",
-        objective: Optional[str] = None,
         input_variables: Optional[List[str]] = None,
     ) -> PromptTemplate:
         tool_strings = "\n".join(
@@ -123,7 +124,7 @@ class ExecutionAgent(Agent):
     def _extract_tool_and_input(self, llm_output: str) -> Optional[Tuple[str, str]]:
         if f"{self.ai_prefix}:" in llm_output:
             return self.ai_prefix, llm_output.split(f"{self.ai_prefix}:")[-1].strip()
-        regex = r"Action: (.*?)[\n]*Action Input: ([.\n]*)"
+        regex = r"Action: (.*?)[\n]*Action Input: ((.|\n)*)"
         match = re.search(regex, llm_output)
         if not match:
             raise ValueError(f"Could not parse LLM output: `{llm_output}`")
@@ -141,12 +142,8 @@ class ExecutionAgent(Agent):
             thoughts += f"\n{self.observation_prefix}{observation}\n{self.llm_prefix}"
 
         if len(thoughts) > 8000:
-            print(">>>>>Thoughts too long, summarizing<<<<<")
-            chain = load_summarize_chain(OpenAI(temperature=0, max_tokens=2000), chain_type="map_reduce")
-            text_splitter = CharacterTextSplitter()
-            texts = text_splitter.split_text(thoughts)
-            docs = [Document(page_content=t) for t in texts[:3]]
-            thoughts = chain.run(docs)
+            summarize_chain = create_summarize_chain(self.llm_chain.llm)
+            thoughts = summarize_chain(thoughts)
 
         return thoughts
 

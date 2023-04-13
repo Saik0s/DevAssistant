@@ -1,34 +1,51 @@
-from langchain.chat_models import ChatOpenAI
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.llms import OpenAI
-from langchain.vectorstores import Chroma
-from orchestrator import AgentOrchestrator
+import sys
+import pinecone
+import os
+import langchain_visualizer
 from typing import Optional
+from orchestrator import AgentOrchestrator
+from langchain.vectorstores import Pinecone
+from langchain.llms import OpenAI
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.chat_models import ChatOpenAI
 
-# import utils.debug
+if "--test" in sys.argv:
+    OBJECTIVE = (
+        "Create a simple project that uses next.js and python for the backend."
+        " It should have a chat interface and subscribe to new messages in real time."
+    )
+else:
+    OBJECTIVE = input("Please enter the objective: ")
 
-OBJECTIVE = (
-    "The goal is to develop a user-friendly SwiftUI gallery screen that integrates The Composable "
-    "Architecture from Point-Free, presenting a grid-like gallery of images fetched from an API. "
-    "The feature should support pagination and search functionality, and enable users to like "
-    "images while showing the like status and count for each image. By leveraging The Composable "
-    "Architecture, the resulting feature will be modular, maintainable, and thoroughly tested, "
-    "ensuring a smooth user experience, efficient memory usage, and adaptability across various "
-    "screen sizes and orientations."
-)
 
-verbose = False
+####################################################################################################
+
+
+openai_api_key = os.environ["OPENAI_API_KEY"]
+pinecone_api_key = os.environ["PINECONE_API_KEY"]
+pinecone_environment = os.environ["PINECONE_ENVIRONMENT"]
+pinecone_index_name = os.environ["PINECONE_INDEX_NAME"]
+
+verbose = True
 max_iterations: Optional[int] = None
+
+collection_name = "dev_assistant"
+
+
+####################################################################################################
+
+
+if verbose:
+    import utils.debug
 
 llm = ChatOpenAI(temperature=0, max_tokens=1000, verbose=verbose)
 # llm = OpenAI(temperature=0)
 
-collection_name = "dev_assistant"
+pinecone.init(api_key=pinecone_api_key, environment=pinecone_environment)
+
 embeddings = OpenAIEmbeddings()
-vectorstore = Chroma(
-    embedding_function=embeddings,
-    persist_directory="chroma",
-    collection_name=collection_name,
+vectorstore = Pinecone.from_existing_index(
+    pinecone_index_name, embeddings, namespace=collection_name
 )
 
 orchestrator = AgentOrchestrator.from_llm(
@@ -38,5 +55,4 @@ orchestrator = AgentOrchestrator.from_llm(
 async def run():
     orchestrator({"objective": OBJECTIVE})
 
-import langchain_visualizer
 langchain_visualizer.visualize(run)
