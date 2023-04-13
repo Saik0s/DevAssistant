@@ -8,6 +8,8 @@ from modules.perception import PerceptionModule
 from modules.reasoning import ReasoningModule
 from typing import Any, Dict, List, Optional
 
+from utils.helpers import create_llm
+
 
 class AgentOrchestrator(Chain):
     memory_module: MemoryModule
@@ -99,12 +101,15 @@ class AgentOrchestrator(Chain):
         return {}
 
     @classmethod
-    def from_llm(cls, llm: BaseLLM, vectorstore: Pinecone, verbose: bool = False, **kwargs) -> "AgentOrchestrator":
+    def from_llm(cls, vectorstore: Pinecone, verbose: bool = False, **kwargs) -> "AgentOrchestrator":
+        llm = create_llm(verbose=verbose)
+        exec_llm = create_llm(max_tokens=1000, verbose=verbose)
+
         memory_module = MemoryModule(llm, vectorstore=vectorstore, verbose=verbose)
         perception_module = PerceptionModule(llm, memory_module=memory_module, verbose=verbose)
         learning_module = LearningModule(llm, memory_module=memory_module, verbose=verbose)
         reasoning_module = ReasoningModule(llm, memory_module=memory_module, verbose=verbose)
-        execution_module = ExecutionModule(llm, memory_module=memory_module, verbose=verbose)
+        execution_module = ExecutionModule(exec_llm, memory_module=memory_module, verbose=verbose)
 
         return cls(
             memory_module=memory_module,

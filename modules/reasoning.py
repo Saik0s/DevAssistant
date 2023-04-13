@@ -8,7 +8,7 @@ from typing import Dict, List
 
 
 class ReasoningModule:
-    first_task = "Make a todo list"
+    first_task = "Analyze objective"
 
     def __init__(self, llm, memory_module: MemoryModule, verbose: bool = True):
         self.task_list = deque()

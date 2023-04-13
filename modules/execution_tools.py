@@ -33,7 +33,7 @@ def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
         #   copy_tool(),
         #   move_tool(),
         #   delete_tool(),
-        #   append_tool(),
+        append_tool(),
         search_memory_tool(memory_module),
         # read_web_readability_tool(),
         # github_tool(),
@@ -46,10 +46,35 @@ def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
 
 
 def parse_lines(input_str):  # sourcery skip: raise-specific-error
-    if lines := [line for line in re.split(r"\\n|\n", input_str.strip('"')) if line.strip()]:
-        return lines
-    else:
+    """
+    This function takes an input string and splits it into lines based on newline characters.
+    It also removes any leading and trailing whitespace from each line and filters out empty lines.
+    If the input string starts and ends with triple backticks, they are removed as well.
+
+    Args:
+        input_str (str): The input string to be parsed.
+
+    Returns:
+        list: A list of parsed lines.
+
+    Raises:
+        Exception: If the parsing fails, an exception is raised with an error message.
+    """
+    lines = [
+        line
+        for line in re.split(r"\\n|\n", input_str.strip('"'))
+        if line.strip()
+    ]
+
+    if not lines:
         raise Exception(f"Parsing lines for {input_str} failed, don't use this tool")
+
+    if lines[0] == "```" and lines[-1] == "```":
+        lines = lines[1:-1]
+
+    return lines
+
+
 
 
 def todo_tool() -> Tool:

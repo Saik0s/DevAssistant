@@ -7,9 +7,8 @@ import langchain_visualizer
 from typing import Optional
 from orchestrator import AgentOrchestrator
 from langchain.vectorstores import Pinecone
-from langchain.llms import OpenAI
 from langchain.embeddings import OpenAIEmbeddings
-from langchain.chat_models import ChatOpenAI
+
 
 if "--test" in sys.argv:
     OBJECTIVE = (
@@ -43,19 +42,16 @@ print(f"Using collection name: {collection_name}")
 if verbose:
     import utils.debug
 
-llm = ChatOpenAI(temperature=0, max_tokens=1000, verbose=verbose)
-# llm = OpenAI(temperature=0)
-
 pinecone.init(api_key=pinecone_api_key, environment=pinecone_environment)
 
 embeddings = OpenAIEmbeddings()
 vectorstore = Pinecone.from_existing_index(pinecone_index_name, embeddings, namespace=collection_name)
 
-orchestrator = AgentOrchestrator.from_llm(llm=llm, vectorstore=vectorstore, verbose=verbose, max_iterations=max_iterations)
+orchestrator = AgentOrchestrator.from_llm(vectorstore=vectorstore, verbose=verbose, max_iterations=max_iterations)
 
-
-async def run():
+if "--visualizer" in sys.argv:
+    async def run():
+        orchestrator({"objective": OBJECTIVE})
+    langchain_visualizer.visualize(run)
+else:
     orchestrator({"objective": OBJECTIVE})
-
-
-langchain_visualizer.visualize(run)
