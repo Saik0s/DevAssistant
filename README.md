@@ -22,15 +22,11 @@ pip install -r requirements.txt
 
 Then, execute `main.py`:
 
-bash
-
 ```bash
 python main.py
 ```
 
 You will be prompted to enter an objective for the agent. For example:
-
-plaintext
 
 ```plaintext
 Please enter the objective: Create a simple project that uses next.js and python for the backend. It should have a chat interface and subscribe to new messages in real time.
