@@ -14,9 +14,11 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
 from langchain.agents import Tool, load_tools
-from langchain import OpenAI, PromptTemplate, SerpAPIWrapper, LLMChain
+from langchain import OpenAI, PromptTemplate, LLMChain
+from datetime import datetime
 
-PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output/"
+current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output_{current_datetime}/"
 
 
 def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
@@ -44,11 +46,7 @@ def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
 
 
 def parse_lines(input_str):  # sourcery skip: raise-specific-error
-    if lines := [
-        line
-        for line in re.split(r"\\n|\n", input_str.strip('"'))
-        if line.strip()
-    ]:
+    if lines := [line for line in re.split(r"\\n|\n", input_str.strip('"')) if line.strip()]:
         return lines
     else:
         raise Exception(f"Parsing lines for {input_str} failed, don't use this tool")

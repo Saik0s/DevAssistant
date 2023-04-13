@@ -2,6 +2,7 @@ from langchain import LLMChain, PromptTemplate
 from langchain.llms import BaseLLM
 from modules.memory import MemoryModule
 
+
 class PerceptionModule:
     def __init__(self, llm: BaseLLM, memory_module: MemoryModule, verbose: bool = True):
         self.task_enhancement_chain = TaskEnhancementChain.from_llm(llm, verbose)
@@ -19,14 +20,14 @@ class PerceptionModule:
         # TODO: Add processing for text
         return text
 
-class TaskEnhancementChain(LLMChain):
 
+class TaskEnhancementChain(LLMChain):
     @classmethod
     def from_llm(cls, llm: BaseLLM, verbose: bool = True) -> LLMChain:
         template = (
             "You are an task improver Assistant.\n"
-            "Consider the ultimate objective of your team: {objective}.\n"
-            "Task related context: {context}.\n"
+            "Consider the ultimate objective of your team: {objective}\n"
+            "Task related context: \n{context}\n"
             "Task: {task}.\n"
             "Now write this task and add one sentence description of how end result should look like.\n"
         )

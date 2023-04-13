@@ -8,13 +8,13 @@ from modules.perception import PerceptionModule
 from modules.reasoning import ReasoningModule
 from typing import Any, Dict, List, Optional
 
-class AgentOrchestrator(Chain):
 
+class AgentOrchestrator(Chain):
     memory_module: MemoryModule
-    perception_module:  PerceptionModule
-    learning_module:  LearningModule
-    reasoning_module:  ReasoningModule
-    execution_module:  ExecutionModule
+    perception_module: PerceptionModule
+    learning_module: LearningModule
+    reasoning_module: ReasoningModule
+    execution_module: ExecutionModule
 
     max_iterations: Optional[int] = None
 
@@ -47,7 +47,7 @@ class AgentOrchestrator(Chain):
         return []
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        self.memory_module.objective = inputs['objective']
+        self.memory_module.objective = inputs["objective"]
         self.reasoning_module.initialize_tasks()
 
         num_iters = 0
@@ -76,8 +76,8 @@ class AgentOrchestrator(Chain):
 
                 new_memory = self.learning_module.learn_from(
                     observation=processed_execution_result,
-                    completed_tasks=self.reasoning_module.completed_task_list,
-                    pending_tasks=self.reasoning_module.task_list,
+                    completed_tasks=list(self.reasoning_module.completed_task_list),
+                    pending_tasks=list(self.reasoning_module.task_list),
                 )
 
                 # Step 3: Store the result in Memory
@@ -99,14 +99,7 @@ class AgentOrchestrator(Chain):
         return {}
 
     @classmethod
-    def from_llm(
-        cls,
-        llm: BaseLLM,
-        vectorstore: Pinecone,
-        verbose: bool = False,
-        **kwargs
-    ) -> "AgentOrchestrator":
-
+    def from_llm(cls, llm: BaseLLM, vectorstore: Pinecone, verbose: bool = False, **kwargs) -> "AgentOrchestrator":
         memory_module = MemoryModule(llm, vectorstore=vectorstore, verbose=verbose)
         perception_module = PerceptionModule(llm, memory_module=memory_module, verbose=verbose)
         learning_module = LearningModule(llm, memory_module=memory_module, verbose=verbose)

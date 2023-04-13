@@ -17,6 +17,7 @@ from typing import Any, List, Optional, Sequence, Tuple
 from typing import Any, List, Optional, Sequence, Tuple, Union
 import re
 
+
 class ExecutionModule:
     def __init__(self, llm, memory_module: MemoryModule, verbose: bool = True):
         self.memory_module = memory_module
@@ -40,7 +41,6 @@ PREFIX = """You are ExecutionAssistant, an AI model by OpenAI, performing tasks 
 Continuously learning and improving, you focuse on the current task to achieve the objective: {objective}, without attempting further work.
 
 Your primary goal is to complete tasks using its knowledge and these tools:
-
 """
 FORMAT_INSTRUCTIONS = """
 
@@ -71,7 +71,8 @@ Thought: Do I need to use a tool? No
 SUFFIX = """
 --------------------
 
-Take into account these previously completed tasks and project context: {context}
+Take into account these previously completed tasks and project context:
+{context}
 
 Your task: {input}
 
@@ -79,6 +80,7 @@ Now take as many steps as you need to make sure you have completed the task.
 You will continue to execute the task until it is complete.
 
 {agent_scratchpad}"""
+
 
 class ExecutionAgent(Agent):
     """An agent designed to execute a single task within a larger workflow."""
@@ -112,9 +114,7 @@ class ExecutionAgent(Agent):
         human_prefix: str = "Human",
         input_variables: Optional[List[str]] = None,
     ) -> PromptTemplate:
-        tool_strings = "\n".join(
-            [f"  - '{tool.name}': {tool.description}" for tool in tools]
-        )
+        tool_strings = "\n".join([f"  - '{tool.name}': {tool.description}" for tool in tools])
         tool_names = ", ".join([tool.name for tool in tools])
         format_instructions = format_instructions.format(tool_names=tool_names, ai_prefix=ai_prefix, human_prefix=human_prefix)
         template = "\n\n".join([prefix, tool_strings, format_instructions, suffix])
@@ -130,11 +130,10 @@ class ExecutionAgent(Agent):
             raise ValueError(f"Could not parse LLM output: `{llm_output}`")
         action = match[1]
         action_input = match[2]
+        print("\n\033[1;34mAction:\033[0m", action, "\n\033[1;34mAction Input:\033[0m", action_input, "\n")
         return action.strip(), action_input.strip(" ").strip('"')
 
-    def _construct_scratchpad(
-        self, intermediate_steps: List[Tuple[AgentAction, str]]
-    ) -> Union[str, List[BaseMessage]]:
+    def _construct_scratchpad(self, intermediate_steps: List[Tuple[AgentAction, str]]) -> Union[str, List[BaseMessage]]:
         """Construct the scratchpad that lets the agent continue its thought process."""
         thoughts = ""
         for action, observation in intermediate_steps:
@@ -175,10 +174,7 @@ class ExecutionAgent(Agent):
         llm_chain = LLMChain(
             llm=llm,
             prompt=prompt,
-            callback_manager=callback_manager, # type: ignore
+            callback_manager=callback_manager,  # type: ignore
         )
         tool_names = [tool.name for tool in tools]
         return cls(llm_chain=llm_chain, allowed_tools=tool_names, ai_prefix=ai_prefix, **kwargs)
-
-
-
