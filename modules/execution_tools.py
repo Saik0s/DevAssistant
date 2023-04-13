@@ -13,15 +13,15 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
-from langchain.agents import Tool
+from langchain.agents import Tool, load_tools
 from langchain import OpenAI, PromptTemplate, SerpAPIWrapper, LLMChain
 
 PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output/"
 
 
 def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
-    #   tools = load_tools(["python_repl"], llm=llm, searx_host="http://localhost:8080", unsecure=True)
-    tools = []
+    tools = load_tools(["python_repl"], llm=llm, searx_host="http://localhost:8080", unsecure=True)
+    # tools = []
     return tools + [
         write_tool(),
         read_tool(),
@@ -34,7 +34,7 @@ def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
         #   append_tool(),
         search_memory_tool(memory_module),
         # read_web_readability_tool(),
-        github_tool(),
+        # github_tool(),
         read_remote_depth_tool(),
         apply_patch_tool(),
         #   read_web_unstructured_tool(),
