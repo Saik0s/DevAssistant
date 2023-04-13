@@ -4,3 +4,5 @@ chroma
 runs
 .prompt
 .DS_Store
+.env
+.envrc

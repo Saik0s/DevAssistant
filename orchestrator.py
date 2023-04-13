@@ -1,7 +1,7 @@
 from langchain.chains.base import Chain
 from langchain.llms import BaseLLM
-from langchain.vectorstores import Chroma
 from modules.evaluation import EvaluationModule
+from langchain.vectorstores import Pinecone
 from modules.execution import ExecutionModule
 from modules.learning import LearningModule
 from modules.memory import MemoryModule
@@ -9,8 +9,10 @@ from modules.perception import PerceptionModule
 from modules.reasoning import ReasoningModule
 from typing import Any, Dict, List, Optional
 
-class AgentOrchestrator(Chain):
+from utils.helpers import create_llm
 
+
+class AgentOrchestrator(Chain):
     memory_module: MemoryModule
     perception_module:  PerceptionModule
     learning_module:  LearningModule
@@ -49,7 +51,7 @@ class AgentOrchestrator(Chain):
         return []
 
     def _call(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        self.memory_module.objective = inputs['objective']
+        self.memory_module.objective = inputs["objective"]
         self.reasoning_module.initialize_tasks()
 
         num_iters = 0
@@ -69,6 +71,9 @@ class AgentOrchestrator(Chain):
                 execution_result = self.execution_module.execute(processed_task)
                 self.print_task_result(execution_result)
 
+                self.memory_module.store_result(execution_result, processed_task)
+                print("\033[1;34mSaved new result\033[0m")
+
                 # Process the execution result using PerceptionModule before storing it in the MemoryModule
                 processed_execution_result = self.perception_module.process_result(execution_result)
                 self.print_task_result(processed_execution_result)
@@ -85,8 +90,8 @@ class AgentOrchestrator(Chain):
 
                 new_memory = self.learning_module.learn_from(
                     observation=processed_execution_result,
-                    completed_tasks=self.reasoning_module.completed_task_list,
-                    pending_tasks=self.reasoning_module.task_list,
+                    completed_tasks=list(self.reasoning_module.completed_task_list),
+                    pending_tasks=list(self.reasoning_module.task_list),
                 )
 
                 # Step 3: Store the result in Memory
@@ -107,19 +112,15 @@ class AgentOrchestrator(Chain):
         return {}
 
     @classmethod
-    def from_llm(
-        cls,
-        llm: BaseLLM,
-        vectorstore: Chroma,
-        verbose: bool = False,
-        **kwargs
-    ) -> "AgentOrchestrator":
+    def from_llm(cls, vectorstore: Pinecone, verbose: bool = False, **kwargs) -> "AgentOrchestrator":
+        llm = create_llm(verbose=verbose)
+        exec_llm = create_llm(max_tokens=1000, verbose=verbose)
 
         memory_module = MemoryModule(llm, vectorstore=vectorstore, verbose=verbose)
         perception_module = PerceptionModule(llm, memory_module=memory_module, verbose=verbose)
         learning_module = LearningModule(llm, memory_module=memory_module, verbose=verbose)
         reasoning_module = ReasoningModule(llm, memory_module=memory_module, verbose=verbose)
-        execution_module = ExecutionModule(llm, memory_module=memory_module, verbose=verbose)
+        execution_module = ExecutionModule(exec_llm, memory_module=memory_module, verbose=verbose)
         evaluation_module = EvaluationModule(llm, memory_module=memory_module, verbose=verbose)
 
         return cls(

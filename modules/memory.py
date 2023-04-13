@@ -1,10 +1,10 @@
 from langchain.llms import BaseLLM
-from langchain.text_splitter import NLTKTextSplitter
-from langchain.vectorstores import Chroma
+from langchain.text_splitter import NLTKTextSplitter, Document
+from langchain.vectorstores import Pinecone
 from typing import List
 
 class MemoryModule:
-    def __init__(self, llm: BaseLLM, vectorstore: Chroma, verbose: bool = True):
+    def __init__(self, llm: BaseLLM, vectorstore: Pinecone, verbose: bool = True):
         self.llm = llm
         self.vectorstore = vectorstore
         self.verbose = verbose
@@ -21,22 +21,15 @@ class MemoryModule:
             # print(f"An error occurred during similarity search: {e}")
             return ""
 
-    def get_context(self):
-        return self.context
-
-    def get_objective(self):
-        return self.objective
+    def store_result(self, result: str, task: dict):
+      self.vectorstore.add_documents([Document(page_content=result, metadata=task)])
 
     def store(self, text: str):
         self._add_to_vectorstore(self.vectorstore, [text])
         self.context = text
 
-    def _add_to_vectorstore(self, vectorstore: Chroma, texts: List[str]):
+    def _add_to_vectorstore(self, vectorstore: Pinecone, texts: List[str]):
         for text in texts:
             splitter = NLTKTextSplitter(chunk_size=1000, chunk_overlap=0)
             text_chunks = splitter.split_text(text)
-            try:
-                vectorstore.add_texts(text_chunks)
-            except Exception as e:
-                print(f"An error occurred during vectorstore.add_texts: {e}")
-        vectorstore.persist()
+            vectorstore.add_texts(text_chunks)

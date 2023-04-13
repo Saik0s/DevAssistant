@@ -3,6 +3,7 @@ from langchain.llms import BaseLLM
 from modules.execution_tools import get_tools
 from modules.memory import MemoryModule
 
+
 class PerceptionModule:
     def __init__(self, llm: BaseLLM, memory_module: MemoryModule, verbose: bool = True):
         self.task_enhancement_chain = TaskEnhancementChain.from_llm(llm, verbose)
@@ -20,17 +21,17 @@ class PerceptionModule:
         # TODO: Add processing for text
         return text
 
-class TaskEnhancementChain(LLMChain):
 
+class TaskEnhancementChain(LLMChain):
     @classmethod
     def from_llm(cls, llm: BaseLLM, verbose: bool = True) -> LLMChain:
         template = (
-            "You are an task explainer AI tasked with preparing a task for an autonomous agent."
-            "autonomous agent has limited ability to access to authorzied tools and resources such as internet, bash, filesystem. "
-            "Consider the ultimate objective of your team: {objective}."
-            "Task related context: {context}."
-            "Task to improve: {task}."
-            "Please rewrite task to be self contained and include all relevant information in as concise as possible way."
+            "You are an task improver Assistant for an autonomous agent.\n"
+            "Autonomous agent has limited ability to access to authorzied tools and resources such as internet, bash, filesystem.\n"
+            "Consider the ultimate objective of your team: {objective}\n"
+            "Task related context: \n{context}\n"
+            "Task: {task}.\n"
+            "Now write this task and add one sentence description of how end result should look like.\n"
         )
         prompt = PromptTemplate(
             template=template,
