@@ -22,7 +22,25 @@ current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
 PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output_{current_datetime}/"
 
 def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
-    tools = load_tools(["python_repl", "searx-search"], llm=llm, searx_host="http://localhost:8080", unsecure=True)
+    def wrap_tool_with_try_catch(tool: Tool) -> Tool:
+        def wrapped_tool(input_str: str) -> str:
+            try:
+                return tool.func(input_str)
+            except Exception as e:
+                return f"Error occurred while executing tool {tool.name}: {str(e)}"
+
+        return Tool(
+            name=f"{tool.name}",
+            func=wrapped_tool,
+            description=f"{tool.description}"
+        )
+
+    tools = [
+        wrap_tool_with_try_catch(tool)
+        for tool in load_tools(["python_repl", "searx-search"], llm=llm, searx_host="http://localhost:8080", unsecure=True)
+    ]
+
+
     # tools = []
     return tools + [
         bash_tool(),
