@@ -76,21 +76,6 @@ def parse_lines(input_str):  # sourcery skip: raise-specific-error
     return lines
 
 
-<<<<<<< HEAD
-def todo_tool() -> Tool:
-    todo_prompt = PromptTemplate.from_template(
-        "You are a planner who is an expert at coming up with a todo list for a given objective. Come up with a todo list for this objective: {objective}"
-    )
-    todo_chain = LLMChain(llm=OpenAI(temperature=0), prompt=todo_prompt)
-    return Tool(
-        name="TODO",
-        func=todo_chain.run,
-        description="useful for when you need to come up with todo lists. Input: an objective to create a todo list for. Output: a todo list for that objective. Please be very clear what the objective is!",
-    )
-
-
-=======
->>>>>>> ba27044 (Improve prompt optimization)
 def bf4_qa_tool() -> Tool:
     BeautifulSoupWebReader = download_loader("BeautifulSoupWebReader")
 
@@ -275,11 +260,7 @@ def write_tool() -> Tool:
             return str(e)
 
     return Tool(
-<<<<<<< HEAD
-        name="FILE.WRITE",
-=======
         name="write_file",
->>>>>>> ba27044 (Improve prompt optimization)
         description="Write content to a file. Input first line is the relative path, the rest is the content.",
         func=write_file,
     )
@@ -318,11 +299,7 @@ def read_tool() -> Tool:
             return str(e)
 
     return Tool(
-<<<<<<< HEAD
-        name="FILE.READ",
-=======
         name="read_file",
->>>>>>> ba27044 (Improve prompt optimization)
         description="Read content from a file. Input is the relative path.",
         func=read_file,
     )

@@ -147,7 +147,7 @@ class ExecutionAgent(Agent):
         full_prompt = "\n".join(prompts)
 
         if self.llm_chain.llm.get_num_tokens(full_prompt) > self.max_tokens - self.llm_chain.llm.max_tokens:
-            summarize_chain = create_summarize_chain(self.llm_chain.llm, verbose=self.llm_chain.verbose)
+            summarize_chain = create_summarize_chain(verbose=self.llm_chain.verbose)
             thoughts = summarize_chain(thoughts)
             summarize_tuple = lambda tup: (tup[0], summarize_chain(tup[1]))
             intermediate_steps = list(map(summarize_tuple, intermediate_steps))
