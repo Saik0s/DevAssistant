@@ -9,7 +9,7 @@ from modules.perception import PerceptionModule
 from modules.reasoning import ReasoningModule
 from typing import Any, Dict, List, Optional
 
-from utils.helpers import create_llm
+from llm import create_llm
 
 
 class AgentOrchestrator(Chain):

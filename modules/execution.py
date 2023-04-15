@@ -1,5 +1,5 @@
 from utils.helpers import create_summarize_chain
-from .execution_tools import get_tools
+from modules.execution_tools import get_tools
 from langchain import OpenAI
 from langchain.agents.agent import Agent
 from langchain.agents.agent import AgentExecutor
@@ -9,11 +9,11 @@ from langchain.chains.summarize import load_summarize_chain
 from langchain.docstore.document import Document
 from langchain.llms.base import BaseLLM
 from langchain.prompts import PromptTemplate
-from langchain.schema import AgentAction, BaseMessage
+from langchain.schema import AgentAction, BaseMessage, AgentFinish
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.tools.base import BaseTool
 from modules.memory import MemoryModule
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 from typing import Any, List, Optional, Sequence, Tuple, Union
 import re
 
@@ -23,6 +23,7 @@ class ExecutionModule:
         self.memory_module = memory_module
         tools = get_tools(llm, memory_module)
         agent = ExecutionAgent.from_llm_and_tools(llm=llm, tools=tools, verbose=verbose)
+        agent.max_tokens = 8000
         self.agent = AgentExecutor.from_agent_and_tools(agent=agent, tools=tools, verbose=verbose)
 
     def execute(self, task):
@@ -86,6 +87,7 @@ class ExecutionAgent(Agent):
     """An agent designed to execute a single task within a larger workflow."""
 
     ai_prefix: str = "Assistant"
+    max_tokens: int = 4000
 
     @property
     def _agent_type(self) -> str:
@@ -126,25 +128,32 @@ class ExecutionAgent(Agent):
             return self.ai_prefix, llm_output.split(f"{self.ai_prefix}:")[-1].strip()
         regex = r"Action: (.*?)[\n]*Action Input: ((.|\n)*)"
         match = re.search(regex, llm_output)
+
         if not match:
-            raise ValueError(f"Could not parse LLM output: `{llm_output}`")
+            print(f"Could not parse LLM output: `{llm_output}`")
+            return "Could not parse action input", llm_output
+
         action = match[1]
         action_input = match[2]
+
         print("\n\033[1;34mAction:\033[0m", action, "\n\033[1;34mAction Input:\033[0m", action_input, "\n")
+
         return action.strip(), action_input.strip(" ").strip('"')
 
-    def _construct_scratchpad(self, intermediate_steps: List[Tuple[AgentAction, str]]) -> Union[str, List[BaseMessage]]:
-        """Construct the scratchpad that lets the agent continue its thought process."""
-        thoughts = ""
-        for action, observation in intermediate_steps:
-            thoughts += action.log
-            thoughts += f"\n{self.observation_prefix}{observation}\n{self.llm_prefix}"
+    def get_full_inputs(self, intermediate_steps: List[Tuple[AgentAction, str]], **kwargs: Any) -> Dict[str, Any]:
+        inputs = super().get_full_inputs(intermediate_steps, **kwargs)
+        prompts, stop = self.llm_chain.prep_prompts([inputs])
+        prompts = [prompt.to_string() for prompt in prompts]
+        full_prompt = "\n".join(prompts)
 
-        if len(thoughts) > 8000:
-            summarize_chain = create_summarize_chain(self.llm_chain.llm)
+        if self.llm_chain.llm.get_num_tokens(full_prompt) > self.max_tokens - self.llm_chain.llm.max_tokens:
+            summarize_chain = create_summarize_chain(self.llm_chain.llm, verbose=self.llm_chain.verbose)
             thoughts = summarize_chain(thoughts)
+            summarize_tuple = lambda tup: (tup[0], summarize_chain(tup[1]))
+            intermediate_steps = list(map(summarize_tuple, intermediate_steps))
+            inputs = super().get_full_inputs(intermediate_steps, **kwargs)
 
-        return thoughts
+        return inputs
 
     @classmethod
     def from_llm_and_tools(

@@ -22,22 +22,22 @@ current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
 PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output_{current_datetime}/"
 
 def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
-    tools = load_tools(["python_repl"], llm=llm, searx_host="http://localhost:8080", unsecure=True)
+    tools = load_tools(["python_repl", "searx-search"], llm=llm, searx_host="http://localhost:8080", unsecure=True)
     # tools = []
     return tools + [
         bash_tool(),
         write_tool(),
         read_tool(),
-        #   tree_tool(),
-        #   mkdir_tool(),
+        tree_tool(),
+        mkdir_tool(),
         #   replace_content_tool(),
         #   copy_tool(),
-        #   move_tool(),
-        #   delete_tool(),
+        move_tool(),
+        delete_tool(),
         append_tool(),
         search_memory_tool(memory_module),
         # read_web_readability_tool(),
-        # github_tool(),
+        github_tool(),
         # read_remote_depth_tool(),
         apply_patch_tool(),
         read_web_unstructured_tool(),
@@ -76,6 +76,7 @@ def parse_lines(input_str):  # sourcery skip: raise-specific-error
     return lines
 
 
+<<<<<<< HEAD
 def todo_tool() -> Tool:
     todo_prompt = PromptTemplate.from_template(
         "You are a planner who is an expert at coming up with a todo list for a given objective. Come up with a todo list for this objective: {objective}"
@@ -88,6 +89,8 @@ def todo_tool() -> Tool:
     )
 
 
+=======
+>>>>>>> ba27044 (Improve prompt optimization)
 def bf4_qa_tool() -> Tool:
     BeautifulSoupWebReader = download_loader("BeautifulSoupWebReader")
 
@@ -103,7 +106,7 @@ def bf4_qa_tool() -> Tool:
         return index.query(question)
 
     return Tool(
-        name="Website Index",
+        name="qa_about_website",
         func=query_website,
         description=f"Useful when you want answer questions about the text on websites. Input format: url\\nquestion.",
     )
@@ -119,7 +122,7 @@ def directory_qa_tool() -> Tool:
         return index.query(q)
 
     return Tool(
-        name="Local Directory Index",
+        name="qa_about_local_directory",
         func=query_local_directory,
         description="Useful when you want answer questions about the files in your local directory.",
     )
@@ -183,7 +186,7 @@ def github_tool() -> Tool:
             return str(e)
 
     return Tool(
-        name="github",
+        name="qa_github_repository",
         description="Load a GitHub repository by URL and ask a provided question. Input format: url\\nbranch\\nquestion.",
         func=load_github_repo,
     )
@@ -205,7 +208,7 @@ def read_remote_depth_tool() -> Tool:
             return str(e)
 
     return Tool(
-        name="read remote depth",
+        name="read_remote_depth",
         description="Read data from a remote url with a specified depth and answers provided question. Input is the url, depth and question separated by a new line character. Depth is an integer. Example: url\n2\nQuestion",
         func=read_remote_depth,
     )
@@ -222,7 +225,7 @@ def read_web_unstructured_tool() -> Tool:
             return str(e)
 
     return Tool(
-        name="read web unstructured",
+        name="read_webpage_unstructured",
         description="Read unstructured data from a webpage. Input is the url.",
         func=read_web_unstructured,
     )
@@ -238,7 +241,7 @@ def read_web_readability_tool() -> Tool:
             return str(e)
 
     return Tool(
-        name="read web readability",
+        name="read_webpage",
         description="Useful when you need to get text content from the webpage. Input is the url.",
         func=read_web_readability,
     )
@@ -252,8 +255,8 @@ def search_memory_tool(memory_module: MemoryModule) -> Tool:
             return str(e)
 
     return Tool(
-        name="search memory",
-        description="Search through memory for completed tasks. Input is a search query.",
+        name="search_memory",
+        description="Search through your memory of completed tasks and research results. Input is a search query.",
         func=search_memory,
     )
 
@@ -272,7 +275,11 @@ def write_tool() -> Tool:
             return str(e)
 
     return Tool(
+<<<<<<< HEAD
         name="FILE.WRITE",
+=======
+        name="write_file",
+>>>>>>> ba27044 (Improve prompt optimization)
         description="Write content to a file. Input first line is the relative path, the rest is the content.",
         func=write_file,
     )
@@ -294,7 +301,7 @@ def apply_patch_tool() -> Tool:
             return str(e)
 
     return Tool(
-        name="apply patch",
+        name="apply_patch",
         description="Apply a patch to the current folder. Input is the patch file content.",
         func=apply_patch,
     )
@@ -311,7 +318,11 @@ def read_tool() -> Tool:
             return str(e)
 
     return Tool(
+<<<<<<< HEAD
         name="FILE.READ",
+=======
+        name="read_file",
+>>>>>>> ba27044 (Improve prompt optimization)
         description="Read content from a file. Input is the relative path.",
         func=read_file,
     )
@@ -326,7 +337,7 @@ def tree_tool() -> Tool:
             return str(e)
 
     return Tool(
-        name="tree",
+        name="directory_tree",
         description="Display the directory tree.",
         func=tree,
     )
@@ -342,7 +353,7 @@ def mkdir_tool() -> Tool:
             return str(e)
 
     return Tool(
-        name="mkdir",
+        name="make_directory",
         description="Create a new directory. Input is the relative path.",
         func=make_directory,
     )
@@ -369,7 +380,7 @@ def replace_content_tool() -> Tool:
             return str(e)
 
     return Tool(
-        name="replace content",
+        name="replace_content",
         description="Replace content in a file using regex. Input is the relative path, pattern, and replacement separated by new lines.",
         func=replace_content,
     )
@@ -387,7 +398,7 @@ def copy_tool() -> Tool:
             return str(e)
 
     return Tool(
-        name="copy",
+        name="copy_file",
         description="Copy a file. Input is the source and destination relative paths separated by a new line.",
         func=copy_file,
     )
@@ -405,7 +416,7 @@ def move_tool() -> Tool:
             return str(e)
 
     return Tool(
-        name="move",
+        name="move_file",
         description="Move a file. Input is the source and destination relative paths separated by a new line.",
         func=move_file,
     )
@@ -426,7 +437,7 @@ def delete_tool() -> Tool:
             return str(e)
 
     return Tool(
-        name="delete",
+        name="delete_file",
         description="Delete a file or directory. Input is the relative path.",
         func=delete_file,
     )
@@ -446,7 +457,7 @@ def append_tool() -> Tool:
             return str(e)
 
     return Tool(
-        name="append",
+        name="append_to_file",
         description="Append content to a file. Input first line is the relative path, the rest is the content.",
         func=append_file,
     )
