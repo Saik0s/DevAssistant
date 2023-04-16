@@ -38,7 +38,7 @@ The list of pending tasks:
 Current context:
 {context}
 
-Please provide a detailed analysis of the current situation, taking into account all available data, and suggest specific behavior adjustments that will help the system move more efficiently towards the objective.
+Perform a detailed analysis of the current state of the project, taking into account all available data, and write concise and concrete instructions for behavior adjustments of the whole system that will help the system move more efficiently towards the objective.
 """
 
 learning_prompt = PromptTemplate(

@@ -23,7 +23,7 @@ class EvaluationModule:
             context=memory,
             objective=objective,
         )
-        is_finished =  "YES" in response.strip().upper() 
+        is_finished =  "YES" in response.strip().upper()
         if is_finished:
             final_answer = response.replace("YES", "").replace('-', '').strip()
             return (is_finished, final_answer)
@@ -31,7 +31,8 @@ class EvaluationModule:
         return (is_finished, "")
 
 
-learning_template = """EvaluationModuleAssistant is an AI specialized in evaluate task, part of a larger system that is solving a complex problem in multiple steps. EvaluationModuleAssistant is answer question about the overal result of whole system, from result of the last step and the overal context, and provide feedback for the system.
+learning_template = """EvaluationModuleAssistant is an AI specialized in evaluate task, part of a larger system that is solving a complex problem in multiple steps.
+EvaluationModuleAssistant is answer question about the overal result of whole system, from result of the last step and the overal context, and provide feedback for the system.
 EvaluationModuleAssistant is also decide is the system archive its ultimate objective.
 The rest of the system is provided the task lists and context contains all information needed to complete the objective.
 

@@ -27,11 +27,12 @@ class TaskEnhancementChain(LLMChain):
     def from_llm(cls, llm: BaseLLM, verbose: bool = True) -> LLMChain:
         template = (
             "You are an task improver Assistant for an autonomous agent.\n"
-            "Autonomous agent has limited ability to access to authorzied tools and resources such as internet, bash, filesystem.\n"
+            "Autonomous agent has limited access to authorzied tools and resources such as internet, bash, filesystem.\n"
+            "Always make sure that tasks are actionable and achievable by task driven autonomous agent with limited access to resources. \n"
             "Consider the ultimate objective of your team: {objective}\n"
             "Task related context: \n{context}\n"
             "Task: {task}.\n"
-            "Now write this task and add one sentence description of how end result should look like.\n"
+            "Now write only one sentence that includes this task and description of how end result should look like.\n"
         )
         prompt = PromptTemplate(
             template=template,

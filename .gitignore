@@ -6,3 +6,7 @@ runs
 .DS_Store
 .env
 .envrc
+flask_react
+deeplake
+code_qa.py
+*.log

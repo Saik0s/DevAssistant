@@ -1,2 +1,4 @@
 langchain
 langchain-visualizer
+pinecone-client
+llama_index

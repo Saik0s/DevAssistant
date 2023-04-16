@@ -23,7 +23,7 @@ class ExecutionModule:
         self.memory_module = memory_module
         tools = get_tools(llm, memory_module)
         agent = ExecutionAgent.from_llm_and_tools(llm=llm, tools=tools, verbose=verbose)
-        agent.max_tokens = 8000
+        agent.max_tokens = 4000
         self.agent = AgentExecutor.from_agent_and_tools(agent=agent, tools=tools, verbose=verbose)
 
     def execute(self, task):
@@ -79,6 +79,9 @@ Your task: {input}
 
 Now take as many steps as you need to make sure you have completed the task.
 You will continue to execute the task until it is complete.
+Be self critical about the way you move towards achieving objective.
+Use available tools extensively. Heavily use file system for project state management.
+Always make sure that task is fully completed before moving to the next one.
 
 {agent_scratchpad}"""
 
