@@ -148,14 +148,23 @@ def bash_tool() -> Tool:
     bash = BashProcess()
     def wrapped_func(command):
         try:
+            # Check if command uses sudo
+            if "sudo" in command:
+                return "Error: Command cannot use sudo"
+            # Check if command tries to do anything outside of PREFIX_PATH
+            if any(arg.startswith("/") for arg in command.split()):
+                return "Error: Command cannot access files outside of current work directory"
             return bash.run(f"cd {PREFIX_PATH} && {command}")
         except Exception as e:
             return str(e)
+
     return Tool(
         name="BASH",
         description="Executes bash commands and returns the output",
         func=wrapped_func
     )
+
+
 
 
 
@@ -199,7 +208,7 @@ def github_tool() -> Tool:
             retriever.search_kwargs["maximal_marginal_relevance"] = True
             retriever.search_kwargs["k"] = 20
 
-            model = ChatOpenAI(model="gpt-4")  # 'gpt-3.5-turbo',
+            model = ChatOpenAI(model='gpt-3.5-turbo', temperature=0)
             qa = ConversationalRetrievalChain.from_llm(model, retriever=retriever)
 
             result = qa({"question": question, "chat_history": []})
