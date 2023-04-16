@@ -15,6 +15,7 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
 from langchain.agents import Tool, load_tools
+from langchain.agents.tools import BaseTool
 from langchain import OpenAI, PromptTemplate, LLMChain
 from datetime import datetime
 
@@ -22,10 +23,10 @@ current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
 PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output_{current_datetime}/"
 
 def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
-    def wrap_tool_with_try_catch(tool: Tool) -> Tool:
+    def wrap_tool_with_try_catch(tool: BaseTool) -> Tool:
         def wrapped_tool(input_str: str) -> str:
             try:
-                return tool.func(input_str)
+                return tool._run(input_str)
             except Exception as e:
                 return f"Error occurred while executing tool {tool.name}: {str(e)}"
 
@@ -106,7 +107,15 @@ def bf4_qa_tool() -> Tool:
         documents = loader.load_data(urls=[url])
         index = GPTSimpleVectorIndex(documents)
 
-        return index.query(question)
+        def wrapped_query_website(question: str) -> str:
+            try:
+                return index.query(question)
+            except Exception as e:
+                return f"Error occurred while executing query_website: {str(e)}"
+
+        return wrapped_query_website(question)
+
+
 
     return Tool(
         name="qa_about_website",
@@ -119,10 +128,15 @@ def directory_qa_tool() -> Tool:
     SimpleDirectoryReader = download_loader("SimpleDirectoryReader")
 
     def query_local_directory(q: str) -> str:
-        loader = SimpleDirectoryReader(PREFIX_PATH, recursive=True, exclude_hidden=True)
-        documents = loader.load_data()
-        index = GPTSimpleVectorIndex(documents)
-        return index.query(q)
+        try:
+            loader = SimpleDirectoryReader(PREFIX_PATH, recursive=True, exclude_hidden=True)
+            documents = loader.load_data()
+            index = GPTSimpleVectorIndex(documents)
+            return index.query(q)
+        except Exception as e:
+            return str(e)
+
+
 
     return Tool(
         name="qa_about_local_directory",
@@ -132,11 +146,18 @@ def directory_qa_tool() -> Tool:
 
 def bash_tool() -> Tool:
     bash = BashProcess()
+    def wrapped_func(command):
+        try:
+            return bash.run(f"cd {PREFIX_PATH} && {command}")
+        except Exception as e:
+            return str(e)
     return Tool(
         name="BASH",
         description="Executes bash commands and returns the output",
-        func=bash.run
+        func=wrapped_func
     )
+
+
 
 def github_tool() -> Tool:
     def load_github_repo(input_str: str) -> str:
