@@ -56,7 +56,9 @@ class AgentOrchestrator(Chain):
                 print("\033[1;34mSaved new result to memory\033[0m")
 
                 # Process the execution result using PerceptionModule before storing it in the MemoryModule
-                processed_execution_result = self.perception_module.process_result(execution_result)
+                processed_execution_result = self.perception_module.process_result(
+                    execution_result
+                )
                 self.print_optimized_task_result(processed_execution_result)
 
                 # ## Evaluate the task result
@@ -81,12 +83,16 @@ class AgentOrchestrator(Chain):
                 print(new_memory)
 
                 # Step 4: Create new tasks and reprioritize task list
-                self.reasoning_module.update_tasks(processed_task, processed_execution_result)
+                self.reasoning_module.update_tasks(
+                    processed_task, processed_execution_result
+                )
                 print("\033[1;33mUpdated tasks based on stored data\033[0m")
 
             num_iters += 1
             if self.max_iterations is not None and num_iters == self.max_iterations:
-                print("\033[91m\033[1m" + "\n*****TASK ENDING*****\n" + "\033[0m\033[0m")
+                print(
+                    "\033[91m\033[1m" + "\n*****TASK ENDING*****\n" + "\033[0m\033[0m"
+                )
                 break
 
         # self.print_end(final_answer)
@@ -94,16 +100,28 @@ class AgentOrchestrator(Chain):
         return {}
 
     @classmethod
-    def from_llm(cls, vectorstore: Pinecone, verbose: bool = False, **kwargs) -> "AgentOrchestrator":
+    def from_llm(
+        cls, vectorstore: Pinecone, verbose: bool = False, **kwargs
+    ) -> "AgentOrchestrator":
         llm = create_llm(verbose=verbose)
         exec_llm = create_llm(verbose=verbose)
 
         memory_module = MemoryModule(llm, vectorstore=vectorstore, verbose=verbose)
-        perception_module = PerceptionModule(llm, memory_module=memory_module, verbose=verbose)
-        learning_module = LearningModule(llm, memory_module=memory_module, verbose=verbose)
-        reasoning_module = ReasoningModule(llm, memory_module=memory_module, verbose=verbose)
-        execution_module = ExecutionModule(exec_llm, memory_module=memory_module, verbose=verbose)
-        evaluation_module = EvaluationModule(llm, memory_module=memory_module, verbose=verbose)
+        perception_module = PerceptionModule(
+            llm, memory_module=memory_module, verbose=verbose
+        )
+        learning_module = LearningModule(
+            llm, memory_module=memory_module, verbose=verbose
+        )
+        reasoning_module = ReasoningModule(
+            llm, memory_module=memory_module, verbose=verbose
+        )
+        execution_module = ExecutionModule(
+            exec_llm, memory_module=memory_module, verbose=verbose
+        )
+        evaluation_module = EvaluationModule(
+            llm, memory_module=memory_module, verbose=verbose
+        )
 
         return cls(
             memory_module=memory_module,
@@ -116,7 +134,9 @@ class AgentOrchestrator(Chain):
         )
 
     def print_task_list(self):
-        print("\033[95m\033[1m" + "\n*****COMPLETED TASK LIST*****\n" + "\033[0m\033[0m")
+        print(
+            "\033[95m\033[1m" + "\n*****COMPLETED TASK LIST*****\n" + "\033[0m\033[0m"
+        )
         for t in self.reasoning_module.completed_task_list:
             print(str(t["task_id"]) + ": " + t["task_name"])
         print("\033[95m\033[1m" + "\n*****TASK LIST*****\n" + "\033[0m\033[0m")
@@ -128,7 +148,9 @@ class AgentOrchestrator(Chain):
         print(str(task["task_id"]) + ": " + task["task_name"])
 
     def print_optimized_next_task(self, task: Dict):
-        print("\033[92m\033[1m" + "\n*****OPTIMIZED NEXT TASK*****\n" + "\033[0m\033[0m")
+        print(
+            "\033[92m\033[1m" + "\n*****OPTIMIZED NEXT TASK*****\n" + "\033[0m\033[0m"
+        )
         print(str(task["task_id"]) + ": " + task["task_name"])
 
     def print_task_result(self, result: str):
@@ -136,11 +158,15 @@ class AgentOrchestrator(Chain):
         print(result)
 
     def print_optimized_task_result(self, result: str):
-        print("\033[93m\033[1m" + "\n*****OPTIMIZED TASK RESULT*****\n" + "\033[0m\033[0m")
+        print(
+            "\033[93m\033[1m" + "\n*****OPTIMIZED TASK RESULT*****\n" + "\033[0m\033[0m"
+        )
         print(result)
 
     def print_evaluated_task_result(self, is_finished: bool, result: str):
-        print("\033[93m\033[1m" + "\n*****EVALUATED TASK RESULT*****\n" + "\033[0m\033[0m")
+        print(
+            "\033[93m\033[1m" + "\n*****EVALUATED TASK RESULT*****\n" + "\033[0m\033[0m"
+        )
         print(f"Is finished: {is_finished}")
         print(result)
 
