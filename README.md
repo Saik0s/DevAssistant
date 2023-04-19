@@ -1,87 +1,71 @@
-# 🤖 Dev Assistant
+<div align="center">
+<img src=".github/logo.png" alt="DevAssistant Logo"/>
+</div>
 
-Dev Assistant is a Python-based project that uses the OpenAI API, Pinecone, and Langchain to create an intelligent agent that can help developers with their tasks. The agent takes an objective as input and orchestrates various modules to achieve the goal.
+**Dev Assistant** is a task driven autonomous agent developed using Python, OpenAI API, Pinecone, and Langchain, which is designed to assist programmers in accomplishing various tasks. 
 
-## 📁 Project Structure
+The agent operates on the basis of input objectives provided by the user, and it employs a range of tools to achieve the desired outcome.
 
-The main entry point of the project is `main.py`, which initializes the necessary components and runs the agent with the given objective.
+The tool is particularly useful for tasks that result in the creation of multiple files upon completion, and it is designed to streamline the workflow of developers.
 
-## 💻 Usage
+## Purpose
 
-To run the project, first set the required environment variables:
+The main goal of this project is to complete tasks using the assistant's knowledge and a set of available tools. The assistant is designed to be self-critical and make extensive use of the file system for project state management. It ensures that each task is fully completed before moving on to the next one.
 
-- `OPENAI_API_KEY`: Your OpenAI API key.
-- `PINECONE_API_KEY`: Your Pinecone API key.
-- `PINECONE_ENVIRONMENT`: The Pinecone environment to use.
-- `PINECONE_INDEX_NAME`: The Pinecone index name to use.
+## Setup
 
-Install the required packages from `requirements.txt`:
-```bash
-pip install -r requirements.txt
-```
+To set up the project, follow these steps:
 
-Then, execute `main.py`:
+1. Clone the repository to your local machine.
+2. Install the required dependencies by running `pip install -r requirements.txt`.
+3. Set up the necessary environment variables in a `.envrc` file. You will need to provide your OpenAI API key, Pinecone API key, Pinecone environment, and Pinecone index name.
+4. Run the project using the command `python -u -m main`.
 
-```bash
-python main.py
-```
+## Running the Project
 
-You will be prompted to enter an objective for the agent. For example:
+You can run the project in different modes:
 
-```plaintext
-Please enter the objective: Create a simple project that uses next.js and python for the backend. It should have a chat interface and subscribe to new messages in real time.
-```
+- To run the project with a specific objective, use the command `python -u -m main --obj "Your objective here"`.
+- To run the project in verbose mode, add the `--verbose` flag to the command.
+- To run the project with a visualizer, add the `--visualizer` flag to the command.
 
-The agent will then work on the objective, and you can observe its progress in the console output.
+<div style="border: 1px solid #ccc; border-radius: 16px; padding: 16px; margin: 16px 0;">
+  <p style="color: red; margin: 0; font-size: 1.4em">
+    WARNING: </p>The agent is equipped with tools that allow making modifications to the machine where it is currently operating. It is recommended to run agent inside docker container. Run <p style="color: rgb(240, 230, 140); background: rgb(47, 79, 79); display: inline;">make docker</p> command to start a container.
+  </p>
+</div>
 
-## 🌟 Starting a Local Searxng Instance
+## Tools
 
-Searxng is a privacy-respecting, hackable metasearch engine. It is used as a tool of the execution agent. To start a local Searxng instance, follow these steps:
+The assistant makes use of several tools to complete tasks. Some of these tools include:
 
-1.  Visit the [Searxng GitHub repository](https://github.com/searxng/searxng).
-2.  Follow the instructions in the README file to set up and configure Searxng on your local machine.
-3.  Ensure that `searxng/settings.yml` contains these values:
+- Python REPL
+- Searx search
+- Bash commands
+- File manipulation (read, write, delete, etc.)
+- GitHub integration
+- Web scraping
 
-```yaml
-server:
-  limiter: false
-general:
-  debug: true
-search:
-  formats:
-    - html
-    - json
-```
-4.  Start the Searxng instance as instructed in the repository.
+## Contributing
 
-## 🔄 Workflow
+If you'd like to contribute to the project, feel free to submit a pull request or open an issue on the repository.
 
-The workflow for DevAssistant consists of the following steps:
+## Links
 
-1.  Receive the objective as input.
-2.  Pre-process the objective using the perception module to extract relevant features.
-3.  Use the reasoning module to decompose the objective into smaller sub-goals and tasks.
-4.  Prioritize tasks and sub-goals based on the AGI's understanding of the problem and the available resources.
-5.  Execute tasks using the execution module, updating the memory module with the results.
-6.  Monitor progress towards the objective and evaluate performance using the learning module.
-7.  If the objective is not yet achieved, adjust the approach based on the learning module's feedback and generate new tasks.
-8.  Repeat steps 4-7 until the objective is achieved or a stopping condition is reached.
-9.  Communicate the results and any relevant insights to the user.
+- [Auto-GPT](https://github.com/Torantulino/Auto-GPT)
+- [babyAGI](https://github.com/yoheinakajima/babyagi)
+- [Llama Index](https://github.com/jerryjliu/llama_index)
+- [langchain](https://github.com/hwchase17/langchain)
+- [SearXNG](https://github.com/searxng/searxng)
 
-🔮 Future Improvements
-----------------------
-
-Some suggested future improvements for DevAssistant include:
+## Future Improvements
 
 *   Integrating a security/safety agent to ensure ethical considerations are met and prevent potential misuse.
 *   Implementing task sequencing and parallel tasks for improved efficiency.
 *   Adding interim milestones to track progress more effectively.
 *   Providing real-time priority updates for better resource allocation.
 
-🚧 Risks & Safety Considerations
---------------------------------
-
-Key risks associated with DevAssistant are:
+## Risks & Safety Considerations
 
 - Data privacy and security: Ensuring user data is protected and not misused.
 - Ethical concerns: Ensuring the AI system does not engage in unethical activities.
@@ -89,15 +73,6 @@ Key risks associated with DevAssistant are:
 - System overload: Preventing the AI system from becoming overwhelmed by too many tasks. ️
 - Misinterpretation of task prioritization: Ensuring the AI system correctly understands and prioritizes tasks.
 
-Addressing these risks is crucial for the successful application of DevAssistant.
-
-# 💡 Inspirations and References
-
-- [Auto-GPT](https://github.com/Torantulino/Auto-GPT)
-- [babyAGI](https://github.com/yoheinakajima/babyagi)
-- [Llama Index](https://github.com/jerryjliu/llama_index)
-- [langchain](https://github.com/hwchase17/langchain)
-
-## 📄 License
+## License
 
 This project is licensed under the MIT License.
