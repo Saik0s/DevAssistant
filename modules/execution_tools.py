@@ -151,6 +151,9 @@ def bash_tool() -> Tool:
             # Check if command uses sudo
             if "sudo" in command:
                 return "Error: Command cannot use sudo"
+            if "apt" in command or "apt-get" in command:
+                return "Error: Command cannot use apt or apt-get"
+
             # Check if command tries to do anything outside of PREFIX_PATH
             if any(arg.startswith("/") for arg in command.split()):
                 return "Error: Command cannot access files outside of current work directory"
