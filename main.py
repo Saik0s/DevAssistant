@@ -8,6 +8,7 @@ from typing import Optional
 from orchestrator import AgentOrchestrator
 from langchain.vectorstores import Pinecone
 from langchain.embeddings import OpenAIEmbeddings
+from dotenv import load_dotenv
 
 
 if "--test" in sys.argv:
@@ -24,6 +25,7 @@ verbose = "--verbose" in sys.argv
 
 ####################################################################################################
 
+load_dotenv('.envrc') # load env from .envrc
 
 openai_api_key = os.environ["OPENAI_API_KEY"]
 pinecone_api_key = os.environ["PINECONE_API_KEY"]

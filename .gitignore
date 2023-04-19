@@ -10,3 +10,9 @@ flask_react
 deeplake
 code_qa.py
 *.log
+*~
+
+searxng-docker.service
+caddy
+srv
+searxng/uwsgi.ini

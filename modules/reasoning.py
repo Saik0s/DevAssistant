@@ -85,6 +85,8 @@ class TaskCreationChain(LLMChain):
             "Be self critical about the way you move towards achieving objective.\n"
             "Always make sure that tasks are actionable and achievable by task driven autonomous agent with limited access to resources. \n"
             "Always make sure that task is fully completed before moving to the next one.\n"
+            "Never create tasks that are continuous, for example: monitoring, testing.\n"
+            "Every task should be possible to start and complete in a short period of time.\n"
             "Return the tasks as an array.\n"
         )
         prompt = PromptTemplate(
@@ -105,7 +107,7 @@ class TaskPrioritizationChain(LLMChain):
             " the following tasks: \n{task_names}\n"
             "Consider the ultimate objective of your team: {objective}\n"
             "Be self critical about the way you move towards achieving objective.\n"
-            "Always make sure that tasks are actionable and achievable by task driven autonomous agent with limited access to resources. \n"
+            "Always make sure that tasks are actionable and achievable by task driven autonomous agent with limited access to resources.\n"
             "Always make sure that task is fully completed before moving to the next one.\n"
             "Do not remove any tasks. Return the result as a numbered list, like:\n"
             "1. First task\n"

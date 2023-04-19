@@ -1,5 +1,5 @@
 from utils.helpers import create_summarize_chain
-from modules.execution_tools import get_tools
+from modules.execution_tools import get_tools, tree_tool
 from langchain import OpenAI
 from langchain.agents.agent import Agent
 from langchain.agents.agent import AgentExecutor
@@ -30,9 +30,10 @@ class ExecutionModule:
         task_name = task["task_name"]
         objective = self.memory_module.objective
         context = self.memory_module.retrieve_related_information(task_name)
+        dir_tree = tree_tool().func("")
         for i in range(3):
             try:
-                return self.agent.run({"input": task_name, "objective": objective, "context": context})
+                return self.agent.run({"input": task_name, "objective": objective, "context": context, "dir_tree": dir_tree})
             except ValueError:
                 print(f"Value error running executor agent. Will retry {2-i} times")
         return "Failed to execute task."
@@ -41,7 +42,7 @@ class ExecutionModule:
 PREFIX = """You are ExecutionAssistant, an AI model by OpenAI, performing tasks within larger workflows.
 Continuously learning and improving, you focuse on the current task to achieve the objective: {objective}, without attempting further work.
 
-Your primary goal is to complete tasks using its knowledge and these tools:
+Your primary goal is to complete tasks using your knowledge and these tools:
 """
 FORMAT_INSTRUCTIONS = """
 
@@ -74,6 +75,9 @@ SUFFIX = """
 
 Take into account these previously completed tasks and project context:
 {context}
+
+Current working directory tree:
+{dir_tree}
 
 Your task: {input}
 
@@ -123,7 +127,7 @@ class ExecutionAgent(Agent):
         tool_names = ", ".join([tool.name for tool in tools])
         format_instructions = format_instructions.format(tool_names=tool_names, ai_prefix=ai_prefix, human_prefix=human_prefix)
         template = "\n\n".join([prefix, tool_strings, format_instructions, suffix])
-        input_variables = ["input", "objective", "context", "agent_scratchpad"]
+        input_variables = ["input", "objective", "context", "agent_scratchpad", "dir_tree"]
         return PromptTemplate(template=template, input_variables=input_variables)
 
     def _extract_tool_and_input(self, llm_output: str) -> Optional[Tuple[str, str]]:
