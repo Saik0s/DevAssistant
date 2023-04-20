@@ -20,6 +20,11 @@ def create_summarize_chain(verbose: bool = True):
             print("Invalid input type. Expected str or Document.")
             texts = text_splitter.split_text(str(text))
             docs = [Document(page_content=t) for t in texts]
-        return chain.run(docs)
+
+        if len(docs) == 0:
+            print("No text to summarize.")
+            return ""
+        else:
+            return chain.run(docs)
 
     return summarize_text
