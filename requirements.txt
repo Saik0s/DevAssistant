@@ -2,5 +2,7 @@ pinecone-client
 langchain==0.0.130
 langchain-visualizer==0.0.19
 llama-index==0.5.1
-beautifulsoup4==4.12.2 
+beautifulsoup4==4.12.2
 soupsieve==2.4.1
+guardrails-ai==0.1.5
+duckduckgo-search

@@ -1,8 +1,12 @@
-from utils.helpers import create_summarize_chain
-from modules.execution_tools import get_tools, tree_tool
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
+import re
+from rich import print
+
 from langchain import OpenAI
 from langchain.agents.agent import Agent
 from langchain.agents.agent import AgentExecutor
+from langchain.agents import AgentType
 from langchain.callbacks.base import BaseCallbackManager
 from langchain.chains import LLMChain
 from langchain.chains.summarize import load_summarize_chain
@@ -12,21 +16,73 @@ from langchain.prompts import PromptTemplate
 from langchain.schema import AgentAction, BaseMessage, AgentFinish
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.tools.base import BaseTool
-from modules.memory import MemoryModule
-from typing import Any, Dict, List, Optional, Sequence, Tuple
-from typing import Any, List, Optional, Sequence, Tuple, Union
-import re
+from langchain.output_parsers import GuardrailsOutputParser
+from langchain.prompts import PromptTemplate
+from langchain.llms import OpenAI
+from langchain.prompts.chat import *
 
+from modules.execution_tools import get_tools, tree_tool
+from modules.memory import MemoryModule
+from utils.helpers import create_summarize_chain
+
+
+#################################################################################################
+### Guardrails Schema
+#################################################################################################
+
+rail_spec = """
+<rail version="0.1">
+
+<output>
+    <choice name="action" on-fail-choice="reask">
+{tool_strings_spec}
+    </choice>
+</output>
+
+
+<instructions>
+You are Execution Assistant performing tasks within larger workflows and only capable of communicating with valid JSON, and no other text.
+You focus on the given task to achieve this objective: {{objective}}.
+
+Take into account these previously completed tasks and project context:
+{{context}}
+
+Current working directory tree:
+{{dir_tree}}
+
+@json_suffix_prompt_examples
+</instructions>
+
+
+<prompt>
+Your task: {{input}}
+
+@complete_json_suffix_v2
+@xml_prefix_prompt
+
+{output_schema}
+
+{{agent_scratchpad}}
+</prompt>
+
+
+</rail>
+"""
+
+#################################################################################################
+### ExecutionModule
+#################################################################################################
 
 class ExecutionModule:
-    def __init__(self, llm, memory_module: MemoryModule, verbose: bool = True):
+    def __init__(self, llm: BaseLLM, memory_module: MemoryModule, verbose: bool = True):
         self.memory_module = memory_module
         tools = get_tools(llm, memory_module)
+        mrkl = initialize_agent(tools, llm, agent=AgentType.CHAT_ZERO_SHOT_REACT_DESCRIPTION, verbose=True)
         agent = ExecutionAgent.from_llm_and_tools(llm=llm, tools=tools, verbose=verbose)
         agent.max_tokens = 4000
         self.agent = AgentExecutor.from_agent_and_tools(agent=agent, tools=tools, verbose=verbose)
 
-    def execute(self, task):
+    def execute(self, task: Dict[str, Any]) -> Union[str, Document]:
         task_name = task["task_name"]
         objective = self.memory_module.objective
         context = self.memory_module.retrieve_related_information(task_name)
@@ -39,62 +95,16 @@ class ExecutionModule:
         return "Failed to execute task."
 
 
-PREFIX = """You are ExecutionAssistant, an AI model by OpenAI, performing tasks within larger workflows.
-Continuously learning and improving, you focuse on the current task to achieve the objective: {objective}, without attempting further work.
-
-Your primary goal is to complete tasks using your knowledge and these tools:
-"""
-FORMAT_INSTRUCTIONS = """
-
-You follow this thought process:
-
-1. Determine if a tool is needed.
-   - If yes, choose an action from the available tools and provide the necessary input.
-   - If no, proceed to step 2.
-
-2. Observe the result of the action or provide a response to the user.
-
-You alway use the following thought format to execute your tasks:
-
-```
-Thought: Do I need to use a tool? Yes
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-```
-
-When you have a response to say to the User, or if you don't need to use a tool, you always use this format:
-
-```
-Thought: Do I need to use a tool? No
-{ai_prefix}: [your response here]
-```
-"""
-SUFFIX = """
---------------------
-
-Take into account these previously completed tasks and project context:
-{context}
-
-Current working directory tree:
-{dir_tree}
-
-Your task: {input}
-
-Now take as many steps as you need to make sure you have completed the task.
-You will continue to execute the task until it is complete.
-Be self critical about the way you move towards achieving objective.
-Use available tools extensively. Heavily use file system for project state management.
-Always make sure that task is fully completed before moving to the next one.
-
-{agent_scratchpad}"""
-
+#################################################################################################
+### ExecutionAgent
+#################################################################################################
 
 class ExecutionAgent(Agent):
     """An agent designed to execute a single task within a larger workflow."""
 
     ai_prefix: str = "Assistant"
     max_tokens: int = 4000
+    output_parser: GuardrailsOutputParser
 
     @property
     def _agent_type(self) -> str:
@@ -112,40 +122,8 @@ class ExecutionAgent(Agent):
     def finish_tool_name(self) -> str:
         return self.ai_prefix
 
-    @classmethod
-    def create_prompt(
-        cls,
-        tools: Sequence[BaseTool],
-        prefix: str = PREFIX,
-        suffix: str = SUFFIX,
-        format_instructions: str = FORMAT_INSTRUCTIONS,
-        ai_prefix: str = "AI",
-        human_prefix: str = "Human",
-        input_variables: Optional[List[str]] = None,
-    ) -> PromptTemplate:
-        tool_strings = "\n".join([f"  - '{tool.name}': {tool.description}" for tool in tools])
-        tool_names = ", ".join([tool.name for tool in tools])
-        format_instructions = format_instructions.format(tool_names=tool_names, ai_prefix=ai_prefix, human_prefix=human_prefix)
-        template = "\n\n".join([prefix, tool_strings, format_instructions, suffix])
-        input_variables = ["input", "objective", "context", "agent_scratchpad", "dir_tree"]
-        return PromptTemplate(template=template, input_variables=input_variables)
-
     def _extract_tool_and_input(self, llm_output: str) -> Optional[Tuple[str, str]]:
-        if f"{self.ai_prefix}:" in llm_output:
-            return self.ai_prefix, llm_output.split(f"{self.ai_prefix}:")[-1].strip()
-        regex = r"Action: (.*?)[\n]*Action (?:i|I)nput: ((?:.|\n)*)"
-        match = re.search(regex, llm_output)
-
-        if not match:
-            print(f"Could not parse LLM output: `{llm_output}`")
-            return "Could not parse action input", llm_output
-
-        action = match[1]
-        action_input = match[2]
-
-        print("\n\033[1;34mAction:\033[0m", action, "\n\033[1;34mAction Input:\033[0m", action_input, "\n")
-
-        return action.strip(), action_input.strip(" ").strip('"')
+        self.output_parser.parse(llm_output)
 
     def get_full_inputs(self, intermediate_steps: List[Tuple[AgentAction, str]], **kwargs: Any) -> Dict[str, Any]:
         inputs = super().get_full_inputs(intermediate_steps, **kwargs)
@@ -167,20 +145,112 @@ class ExecutionAgent(Agent):
         llm: BaseLLM,
         tools: Sequence[BaseTool],
         callback_manager: Optional[BaseCallbackManager] = None,
+        **kwargs: Any,
+    ) -> "ExecutionAgent":
+        """Construct an agent from an LLM and tools."""
+        cls._validate_tools(tools)
+        tool_strings_spec = "\n".join([f'<string name="{tool.name}" description="{tool.description}" on-fail-valid-choices="reask" />' for tool in tools])
+        complete_rail_spec = rail_spec.format(tool_strings_spec=tool_strings_spec)
+        output_parser = GuardrailsOutputParser.from_rail_string(complete_rail_spec)
+        prompt = PromptTemplate(
+            template=output_parser.guard.base_prompt,
+            input_variables=output_parser.guard.prompt.variable_names,
+        )
+        llm_chain = LLMChain(
+            llm=llm,
+            prompt=prompt,
+            callback_manager=callback_manager,
+        )
+        tool_names = [tool.name for tool in tools]
+        return cls(llm_chain=llm_chain, allowed_tools=tool_names, output_parser=output_parser, **kwargs)
+
+
+################
+
+FINAL_ANSWER_ACTION = "Final Answer:"
+
+
+class ChatAgent(Agent):
+    @property
+    def observation_prefix(self) -> str:
+        """Prefix to append the observation with."""
+        return "Observation: "
+
+    @property
+    def llm_prefix(self) -> str:
+        """Prefix to append the llm call with."""
+        return "Thought:"
+
+    def _construct_scratchpad(
+        self, intermediate_steps: List[Tuple[AgentAction, str]]
+    ) -> str:
+        agent_scratchpad = super()._construct_scratchpad(intermediate_steps)
+        if not isinstance(agent_scratchpad, str):
+            raise ValueError("agent_scratchpad should be of type string.")
+        if agent_scratchpad:
+            return (
+                f"This was your previous work "
+                f"(but I haven't seen any of it! I only see what "
+                f"you return as final answer):\n{agent_scratchpad}"
+            )
+        else:
+            return agent_scratchpad
+
+    def _extract_tool_and_input(self, text: str) -> Optional[Tuple[str, str]]:
+        if FINAL_ANSWER_ACTION in text:
+            return "Final Answer", text.split(FINAL_ANSWER_ACTION)[-1].strip()
+        try:
+            _, action, _ = text.split("```")
+            response = json.loads(action.strip())
+            return response["action"], response["action_input"]
+
+        except Exception:
+            raise ValueError(f"Could not parse LLM output: {text}")
+
+    @property
+    def _stop(self) -> List[str]:
+        return ["Observation:"]
+
+    @classmethod
+    def create_prompt(
+        cls,
+        tools: Sequence[BaseTool],
         prefix: str = PREFIX,
         suffix: str = SUFFIX,
         format_instructions: str = FORMAT_INSTRUCTIONS,
-        ai_prefix: str = "Assistant",
-        human_prefix: str = "Human",
+        input_variables: Optional[List[str]] = None,
+    ) -> BasePromptTemplate:
+        tool_strings_spec = "\n".join([f'<string name="{tool.name}" description="{tool.description}" on-fail-valid-choices="reask" />' for tool in tools])
+        complete_rail_spec = rail_spec.format(tool_strings_spec=tool_strings_spec)
+        output_parser = GuardrailsOutputParser.from_rail_string(complete_rail_spec)
+        prompt = PromptTemplate(
+            template=output_parser.guard.base_prompt,
+            input_variables=output_parser.guard.prompt.variable_names,
+        )
+        messages = [
+            SystemMessagePromptTemplate.from_template(template),
+            HumanMessagePromptTemplate.from_template("{input}\n\n{agent_scratchpad}"),
+        ]
+        if input_variables is None:
+            input_variables = ["input", "agent_scratchpad"]
+        return ChatPromptTemplate(input_variables=input_variables, messages=messages)
+
+    @classmethod
+    def from_llm_and_tools(
+        cls,
+        llm: BaseLanguageModel,
+        tools: Sequence[BaseTool],
+        callback_manager: Optional[BaseCallbackManager] = None,
+        prefix: str = PREFIX,
+        suffix: str = SUFFIX,
+        format_instructions: str = FORMAT_INSTRUCTIONS,
         input_variables: Optional[List[str]] = None,
         **kwargs: Any,
-    ):
+    ) -> Agent:
         """Construct an agent from an LLM and tools."""
         cls._validate_tools(tools)
         prompt = cls.create_prompt(
             tools,
-            ai_prefix=ai_prefix,
-            human_prefix=human_prefix,
             prefix=prefix,
             suffix=suffix,
             format_instructions=format_instructions,
@@ -189,7 +259,11 @@ class ExecutionAgent(Agent):
         llm_chain = LLMChain(
             llm=llm,
             prompt=prompt,
-            callback_manager=callback_manager,  # type: ignore
+            callback_manager=callback_manager,
         )
         tool_names = [tool.name for tool in tools]
-        return cls(llm_chain=llm_chain, allowed_tools=tool_names, ai_prefix=ai_prefix, **kwargs)
+        return cls(llm_chain=llm_chain, allowed_tools=tool_names, **kwargs)
+
+    @property
+    def _agent_type(self) -> str:
+        raise ValueError
