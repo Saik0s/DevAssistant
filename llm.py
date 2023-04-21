@@ -2,7 +2,7 @@ from langchain.chains.summarize import load_summarize_chain
 from langchain.chat_models import ChatOpenAI
 
 
-def create_llm(temperature: float = 0,
+def create_llm(temperature: float = 0.3,
                max_tokens: int = 1000,
                model_name: str = "gpt-4",
                verbose: bool = True):
