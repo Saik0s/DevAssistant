@@ -6,3 +6,4 @@ beautifulsoup4==4.12.2
 soupsieve==2.4.1
 guardrails-ai==0.1.5
 duckduckgo-search
+git+https://github.com/ShreyaR/guardrails.git@main
