@@ -215,9 +215,6 @@ class ChatAgent(Agent):
     def create_prompt(
         cls,
         tools: Sequence[BaseTool],
-        prefix: str = PREFIX,
-        suffix: str = SUFFIX,
-        format_instructions: str = FORMAT_INSTRUCTIONS,
         input_variables: Optional[List[str]] = None,
     ) -> BasePromptTemplate:
         tool_strings_spec = "\n".join([f'<string name="{tool.name}" description="{tool.description}" on-fail-valid-choices="reask" />' for tool in tools])
