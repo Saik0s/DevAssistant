@@ -14,10 +14,12 @@ class MemoryModule:
 
     def retrieve_related_information(self, query, top_k=5):
         try:
-            search_results = self.vectorstore.similarity_search_with_score(query, k=top_k)
-            context = "\n".join([f"{score}: {doc.page_content}" for doc, score in search_results])
-            if len(context) > 1000:
-                context = summarize_text(context, verbose=self.verbose)
+            search_results = self.vectorstore.similarity_search(query, k=top_k)
+            context = "\n".join([doc.page_content for doc in search_results])
+            # search_results = self.vectorstore.similarity_search_with_score(query, k=top_k)
+            # context = "\n".join([f"{score}: {doc.page_content}" for doc, score in search_results])
+            if len(context) > 10000:
+                context = summarize_text(search_results, max_chars=10000, verbose=self.verbose)
             return context
         except Exception as e:
             print(f"An error occurred during similarity search: {e}")

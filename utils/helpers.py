@@ -1,11 +1,11 @@
-from typing import Union
+from typing import List, Union
 from langchain import OpenAI, PromptTemplate
 from langchain.chains.summarize import load_summarize_chain
 from langchain.docstore.document import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 
-def summarize_text(text: Union[str, Document], max_chars: int = 1000, verbose: bool = True) -> str:
+def summarize_text(text: List[Union[str, Document]], max_chars: int = 1000, verbose: bool = True) -> str:
     if not text:
         print("No text to summarize.")
         return ""
@@ -21,7 +21,10 @@ def summarize_text(text: Union[str, Document], max_chars: int = 1000, verbose: b
     chain = load_summarize_chain(llm, chain_type="map_reduce", combine_prompt=prompt, verbose=verbose)
     text_splitter = RecursiveCharacterTextSplitter()
 
-    texts = text_splitter.split_text(text) if isinstance(text, str) else text_splitter.split_documents([text])
-    docs = [Document(page_content=t) for t in texts]
+    docs = (
+        [Document(page_content=t) for t in text_splitter.split_text(text)]
+        if isinstance(text[0], str)
+        else text_splitter.split_documents(text)
+    )
 
     return chain.run(docs)

@@ -7,6 +7,7 @@ test:
 
 install:
 	pip install -r requirements.txt
+	pip install -U SQLAlchemy
 	cd modules/tools && npm install
 
 docker:

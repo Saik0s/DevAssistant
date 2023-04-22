@@ -65,25 +65,20 @@ class ReasoningModule:
 
 
 class TaskCreationChain(LLMChain):
-    """Chain to generates tasks."""
+    """Chain to generate tasks."""
 
     @classmethod
     def from_llm(cls, llm: BaseLLM, verbose: bool = True) -> LLMChain:
         """Get the response parser."""
         task_creation_template = (
-            "You are an task creation AI that uses the result of an execution agent"
-            " to create new tasks with the following objective: {objective}.\n"
-            "Your goal is to create as little tasks as possible.\n"
-            "The last completed task has the result: \n{result}.\n\n"
-            "This result was based on this task description: {task_description}.\n"
-            "These are incomplete tasks: \n{incomplete_tasks}\n\n"
-            "Be self critical about the way you create tasks for achieving objective.\n"
-            "Always make sure that tasks are actionable and achievable by task driven autonomous agent with limited access to resources. \n"
-            "Never create tasks that are continuous, for example: monitoring, testing.\n"
-            "Every task should be possible to start and complete in a short period of time.\n"
-            "Ask yourself if the new task is really needed, or objective can be reached without it.\n"
-            "If objective can be reached without the new task, then do not create it.\n"
-            "Return the tasks as an array.\n"
+            "As a task creation AI, create new tasks with the objective: {objective}.\n"
+            "Last completed task's result: {result}.\n"
+            "Task description: {task_description}.\n"
+            "Incomplete tasks: {incomplete_tasks}\n\n"
+            "Ensure tasks are actionable and achievable by an agent with limited resources.\n"
+            "Create short, finite tasks. Avoid continuous tasks like monitoring or testing.\n"
+            "Consider if a new task is essential for reaching the objective.\n"
+            "Return tasks as an array.\n"
         )
         prompt = PromptTemplate(
             template=task_creation_template,
@@ -99,14 +94,9 @@ class TaskPrioritizationChain(LLMChain):
     def from_llm(cls, llm: BaseLLM, verbose: bool = True) -> LLMChain:
         """Get the response parser."""
         task_prioritization_template = (
-            "You are an task prioritization AI tasked with formatting and prioritizing"
-            " the following tasks: \n{task_names}\n\n"
-            "Consider the ultimate objective of your team: {objective}\n"
-            "Be self critical about the way you prioritize tasks for this objective objective.\n"
-            "Do not remove any tasks. Return the result as a numbered list, like:\n\n"
-            "1. First task\n"
-            "2. Second task\n\n"
-            "Start the task list with number {next_task_id}.\n"
+            "As a task prioritization AI, format and prioritize tasks: {task_names}\n"
+            "Objective: {objective}\n\n"
+            "Return prioritized tasks as a numbered list starting with {next_task_id}.\n"
         )
         prompt = PromptTemplate(
             template=task_prioritization_template,

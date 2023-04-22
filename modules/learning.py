@@ -21,25 +21,14 @@ class LearningModule:
         )
 
 
-learning_template = """You are LearningAssistant - AI specialized in information consolidation, part of a larger system that is solving a complex problem in multiple steps.
-
-The ultimate objective is:
-{objective}
-
-Completed tasks:
-{completed_tasks}
-
-The last task output was:
-{last_output}
-
-The list of pending tasks:
-{pending_tasks}
-
-Current context:
-{context}
-
-Perform a detailed analysis of the current state of the project, taking into account all available data, and write concise and concrete instructions for behavior adjustments of the whole system that will help the system move more efficiently towards the objective.
-"""
+learning_template = (
+    "As LearningAssistant, analyze the project to efficiently achieve the objective: {objective}.\n\n"
+    "Completed tasks: {completed_tasks}\n"
+    "Last task output: {last_output}\n"
+    "Pending tasks: {pending_tasks}\n"
+    "Context: {context}\n\n"
+    "Provide concise instructions for behavior adjustments to improve system efficiency."
+)
 
 learning_prompt = PromptTemplate(
     template=learning_template,

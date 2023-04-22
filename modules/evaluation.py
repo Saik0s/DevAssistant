@@ -31,28 +31,19 @@ class EvaluationModule:
         return (is_finished, "")
 
 
-learning_template = """EvaluationModuleAssistant is an AI specialized in evaluate task, part of a larger system that is solving a complex problem in multiple steps.
-EvaluationModuleAssistant is answer question about the overal result of whole system, from result of the last step and the overal context, and provide feedback for the system.
-EvaluationModuleAssistant is also decide is the system archive its ultimate objective.
-The rest of the system is provided the task lists and context contains all information needed to complete the objective.
-
-The ultimate objective is: {objective}.
-Completed tasks: {completed_tasks}
-The last task output was:
-{last_output}
-
-The list of pending tasks: {pending_tasks}
-
-Current context to update:
-{context}
-
-EvaluationModuleAssistant must answer question have that the system completed its ultimate objective, if yes provide final answer for the ultimate task.
-Remeber to be strict, if EvaluationModuleAssistant not sure that the system had completed the ultimate objective, EvaluationModuleAssistant must answer NO.
-Expected answer: YES - the final answer for the ultimate task, or NO
-EvaluationModuleAssistant: """
+evaluation_template = (
+    "As EvaluationModuleAssistant, determine if the system has achieved its ultimate objective: {objective}.\n\n"
+    "Completed tasks: {completed_tasks}\n"
+    "Last task output: {last_output}\n"
+    "Pending tasks: {pending_tasks}\n"
+    "Context: {context}\n\n"
+    "If the objective is achieved, provide the final answer; otherwise, answer NO.\n"
+    "Expected answer: YES - the final answer for the ultimate task, or NO\n"
+    "EvaluationModuleAssistant:"
+)
 
 evaluation_prompt = PromptTemplate(
-    template=learning_template,
+    template=evaluation_template,
     input_variables=[
         "completed_tasks",
         "pending_tasks",
@@ -61,7 +52,6 @@ evaluation_prompt = PromptTemplate(
         "objective",
     ],
 )
-
 
 class EvaluateChain(LLMChain):
     @classmethod

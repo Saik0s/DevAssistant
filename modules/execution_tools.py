@@ -23,27 +23,21 @@ PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output_{
 
 
 def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
-
     def wrap_tool_with_try_catch(tool: BaseTool) -> Tool:
-
         def wrapped_tool(input_str: str) -> str:
             try:
                 return tool._run(input_str)
             except Exception as e:
                 return f"Error occurred while executing tool {tool.name}: {str(e)}"
 
-        return Tool(name=f"{tool.name}",
-                    func=wrapped_tool,
-                    description=f"{tool.description}")
+        return Tool(name=f"{tool.name}", func=wrapped_tool, description=f"{tool.description}")
 
-    tools = [
-        wrap_tool_with_try_catch(tool)
-        for tool in load_tools(["python_repl"], llm=llm)
-    ]
+    tools = [wrap_tool_with_try_catch(tool) for tool in load_tools(["python_repl"], llm=llm)]
 
     # tools = []
     return tools + [
         bash_tool(),
+        google_search_tool,
         # write_tool(),
         # read_tool(),
         # tree_tool(),
@@ -79,32 +73,22 @@ def parse_lines(input_str):  # sourcery skip: raise-specific-error
     Raises:
         Exception: If the parsing fails, an exception is raised with an error message.
     """
-    lines = [
-        line for line in re.split(r"\\n|\n", input_str.strip('"'))
-        if line.strip()
-    ]
+    lines = [line for line in re.split(r"\\n|\n", input_str.strip('"')) if line.strip()]
 
     if not lines:
-        raise Exception(
-            f"Parsing lines for {input_str} failed, don't use this tool")
+        raise Exception(f"Parsing lines for {input_str} failed, don't use this tool")
 
     if lines[0] == "```" and lines[-1] == "```":
         lines = lines[1:-1]
 
     return lines
 
-def google_search_tool() -> Tool:
-    bash = BashProcess()
 
-    def wrapped_func(query: str) -> str:
-        try:
-            return bash.run(f"node google.js {query}")
-        except Exception as e:
-            return str(e)
-
-    return Tool(name="google_search",
-                description="This is Google. Use this tool to search the internet. Input should be a string",
-                func=wrapped_func)
+google_search_tool = Tool(
+    name="google_search",
+    description="This is Google. Use this tool to search the internet. Input should be a string",
+    func=lambda query: BashProcess().run(f"cd {os.path.dirname(os.path.realpath(__file__))}/tools && node google.js \"{query}\""),
+)
 
 
 def bf4_qa_tool() -> Tool:
@@ -128,8 +112,7 @@ def bf4_qa_tool() -> Tool:
     return Tool(
         name="qa_about_website",
         func=query_website,
-        description=
-        f"Useful when you want answer questions about the text on websites. Input format: url\\nquestion.",
+        description=f"Useful when you want answer questions about the text on websites. Input format: url\\nquestion.",
     )
 
 
@@ -138,9 +121,7 @@ def directory_qa_tool() -> Tool:
 
     def query_local_directory(q: str) -> str:
         try:
-            loader = SimpleDirectoryReader(PREFIX_PATH,
-                                           recursive=True,
-                                           exclude_hidden=True)
+            loader = SimpleDirectoryReader(PREFIX_PATH, recursive=True, exclude_hidden=True)
             documents = loader.load_data()
             index = GPTSimpleVectorIndex(documents)
             return index.query(q)
@@ -150,8 +131,7 @@ def directory_qa_tool() -> Tool:
     return Tool(
         name="qa_about_local_directory",
         func=query_local_directory,
-        description=
-        "Useful when you want answer questions about the files in your local directory.",
+        description="Useful when you want answer questions about the files in your local directory.",
     )
 
 
@@ -173,13 +153,10 @@ def bash_tool() -> Tool:
         except Exception as e:
             return str(e)
 
-    return Tool(name="BASH",
-                description="Executes bash commands and returns the output",
-                func=wrapped_func)
+    return Tool(name="BASH", description="Executes bash commands and returns the output", func=wrapped_func)
 
 
 def github_tool() -> Tool:
-
     def load_github_repo(input_str: str) -> str:
         try:
             input_lines = parse_lines(input_str)
@@ -208,13 +185,10 @@ def github_tool() -> Tool:
                 documents = loader.load_data()
                 docs = [doc.to_langchain_format() for doc in documents]
 
-                text_splitter = CharacterTextSplitter(chunk_size=1000,
-                                                      chunk_overlap=0)
+                text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
                 texts = text_splitter.split_documents(docs)
 
-                db = DeepLake.from_documents(texts,
-                                             embeddings,
-                                             dataset_path=local_vector_path)
+                db = DeepLake.from_documents(texts, embeddings, dataset_path=local_vector_path)
 
             retriever = db.as_retriever()
             retriever.search_kwargs["distance_metric"] = "cos"
@@ -222,9 +196,8 @@ def github_tool() -> Tool:
             retriever.search_kwargs["maximal_marginal_relevance"] = True
             retriever.search_kwargs["k"] = 20
 
-            model = ChatOpenAI(model='gpt-3.5-turbo', temperature=0)
-            qa = ConversationalRetrievalChain.from_llm(model,
-                                                       retriever=retriever)
+            model = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+            qa = ConversationalRetrievalChain.from_llm(model, retriever=retriever)
 
             result = qa({"question": question, "chat_history": []})
 
@@ -235,14 +208,12 @@ def github_tool() -> Tool:
 
     return Tool(
         name="qa_github_repository",
-        description=
-        "Load a GitHub repository by URL and ask a provided question. Input format: url\\nbranch\\nquestion.",
+        description="Load a GitHub repository by URL and ask a provided question. Input format: url\\nbranch\\nquestion.",
         func=load_github_repo,
     )
 
 
 def read_remote_depth_tool() -> Tool:
-
     def read_remote_depth(input_str: str) -> str:
         try:
             input_lines = parse_lines(input_str)
@@ -253,29 +224,23 @@ def read_remote_depth_tool() -> Tool:
             loader = RemoteDepthReader(depth=depth, domain_lock=True)
             documents = loader.load_data(url=url)
             index = GPTSimpleVectorIndex.from_documents(documents)
-            return index.query(
-                query,
-                optimizer=SentenceEmbeddingOptimizer(percentile_cutoff=0.5))
+            return index.query(query, optimizer=SentenceEmbeddingOptimizer(percentile_cutoff=0.5))
         except Exception as e:
             return str(e)
 
     return Tool(
         name="read_remote_depth",
-        description=
-        "Read data from a remote url with a specified depth and answers provided question. Input is the url, depth and question separated by a new line character. Depth is an integer. Example: url\n2\nQuestion",
+        description="Read data from a remote url with a specified depth and answers provided question. Input is the url, depth and question separated by a new line character. Depth is an integer. Example: url\n2\nQuestion",
         func=read_remote_depth,
     )
 
 
 def read_web_unstructured_tool() -> Tool:
-
     def read_web_unstructured(url: str) -> str:
         try:
             UnstructuredURLLoader = download_loader("UnstructuredURLLoader")
             urls = [url]
-            loader = UnstructuredURLLoader(urls=urls,
-                                           continue_on_failure=False,
-                                           headers={"User-Agent": ""})
+            loader = UnstructuredURLLoader(urls=urls, continue_on_failure=False, headers={"User-Agent": ""})
             return loader.load()
         except Exception as e:
             return str(e)
@@ -288,11 +253,9 @@ def read_web_unstructured_tool() -> Tool:
 
 
 def read_web_readability_tool() -> Tool:
-
     def read_web_readability(url: str) -> str:
         try:
-            ReadabilityWebPageReader = download_loader(
-                "ReadabilityWebPageReader")
+            ReadabilityWebPageReader = download_loader("ReadabilityWebPageReader")
             loader = ReadabilityWebPageReader()
             return loader.load_data(url=url)
         except Exception as e:
@@ -300,31 +263,26 @@ def read_web_readability_tool() -> Tool:
 
     return Tool(
         name="read_webpage",
-        description=
-        "Useful when you need to get text content from the webpage. Input is the url.",
+        description="Useful when you need to get text content from the webpage. Input is the url.",
         func=read_web_readability,
     )
 
 
 def search_memory_tool(memory_module: MemoryModule) -> Tool:
-
     def search_memory(input_str: str) -> str:
         try:
-            return memory_module.retrieve_related_information(input_str,
-                                                              top_k=20)
+            return memory_module.retrieve_related_information(input_str, top_k=20)
         except Exception as e:
             return str(e)
 
     return Tool(
         name="search_memory",
-        description=
-        "Search through your memory of completed tasks and research results. Input is a search query.",
+        description="Search through your memory of completed tasks and research results. Input is a search query.",
         func=search_memory,
     )
 
 
 def write_tool() -> Tool:
-
     def write_file(input_str: str) -> str:
         try:
             input_lines = parse_lines(input_str)
@@ -339,14 +297,12 @@ def write_tool() -> Tool:
 
     return Tool(
         name="write_file",
-        description=
-        "Write content to a file. Input first line is the relative path, the rest is the content.",
+        description="Write content to a file. Input first line is the relative path, the rest is the content.",
         func=write_file,
     )
 
 
 def apply_patch_tool() -> Tool:
-
     def apply_patch(input_str: str) -> str:
         try:
             patch_file = f"{PREFIX_PATH}temp_patch_file.patch"
@@ -354,9 +310,7 @@ def apply_patch_tool() -> Tool:
                 file.write(input_str)
 
             bash = BashProcess()
-            result = bash.run(
-                f"cd {PREFIX_PATH} && patch -p1 -u -f -i temp_patch_file.patch"
-            )
+            result = bash.run(f"cd {PREFIX_PATH} && patch -p1 -u -f -i temp_patch_file.patch")
 
             os.remove(patch_file)
             return f"Patch applied:\n{result}"
@@ -365,14 +319,12 @@ def apply_patch_tool() -> Tool:
 
     return Tool(
         name="apply_patch",
-        description=
-        "Apply a patch to the current folder. Input is the patch file content.",
+        description="Apply a patch to the current folder. Input is the patch file content.",
         func=apply_patch,
     )
 
 
 def read_tool() -> Tool:
-
     def read_file(input_str: str) -> str:
         try:
             path = PREFIX_PATH + input_str.replace("..", "")
@@ -390,7 +342,6 @@ def read_tool() -> Tool:
 
 
 def tree_tool() -> Tool:
-
     def tree(input_str: str) -> str:
         try:
             bash = BashProcess()
@@ -406,7 +357,6 @@ def tree_tool() -> Tool:
 
 
 def mkdir_tool() -> Tool:
-
     def make_directory(input_str: str) -> str:
         try:
             path = PREFIX_PATH + input_str.replace("..", "")
@@ -423,7 +373,6 @@ def mkdir_tool() -> Tool:
 
 
 def replace_content_tool() -> Tool:
-
     def replace_content(input_str: str) -> str:
         try:
             input_lines = parse_lines(input_str)
@@ -445,14 +394,12 @@ def replace_content_tool() -> Tool:
 
     return Tool(
         name="replace_content",
-        description=
-        "Replace content in a file using regex. Input is the relative path, pattern, and replacement separated by new lines.",
+        description="Replace content in a file using regex. Input is the relative path, pattern, and replacement separated by new lines.",
         func=replace_content,
     )
 
 
 def copy_tool() -> Tool:
-
     def copy_file(input_str: str) -> str:
         try:
             input_lines = parse_lines(input_str)
@@ -465,14 +412,12 @@ def copy_tool() -> Tool:
 
     return Tool(
         name="copy_file",
-        description=
-        "Copy a file. Input is the source and destination relative paths separated by a new line.",
+        description="Copy a file. Input is the source and destination relative paths separated by a new line.",
         func=copy_file,
     )
 
 
 def move_tool() -> Tool:
-
     def move_file(input_str: str) -> str:
         try:
             input_lines = parse_lines(input_str)
@@ -485,14 +430,12 @@ def move_tool() -> Tool:
 
     return Tool(
         name="move_file",
-        description=
-        "Move a file. Input is the source and destination relative paths separated by a new line.",
+        description="Move a file. Input is the source and destination relative paths separated by a new line.",
         func=move_file,
     )
 
 
 def delete_tool() -> Tool:
-
     def delete_file(input_str: str) -> str:
         try:
             path = PREFIX_PATH + input_str.replace("..", "")
@@ -514,7 +457,6 @@ def delete_tool() -> Tool:
 
 
 def append_tool() -> Tool:
-
     def append_file(input_str: str) -> str:
         try:
             input_lines = parse_lines(input_str)
@@ -529,7 +471,6 @@ def append_tool() -> Tool:
 
     return Tool(
         name="append_to_file",
-        description=
-        "Append content to a file. Input first line is the relative path, the rest is the content.",
+        description="Append content to a file. Input first line is the relative path, the rest is the content.",
         func=append_file,
     )
