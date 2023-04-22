@@ -1,3 +1,4 @@
+import platform
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from rich import print
@@ -15,13 +16,9 @@ from langchain.prompts.chat import *
 
 from modules.execution_tools import get_tools, tree_tool
 from modules.memory import MemoryModule
-from utils.helpers import create_summarize_chain
+from utils.helpers import summarize_text
 
-
-#################################################################################################
-### Guardrails Schema
-#################################################################################################
-
+# Define the Guardrails Schema for the Execution Assistant
 rail_spec = """
 <rail version="0.1">
 
@@ -36,7 +33,7 @@ rail_spec = """
 
 
 <instructions>
-You are Execution Assistant performing tasks within larger workflows and only capable of communicating with valid JSON, and no other text.
+You are a Task Driven Autonomous Agent running on {operating_system} only capable of communicating with valid JSON, and no other text.
 
 @json_suffix_prompt_examples
 </instructions>
@@ -65,11 +62,7 @@ Your task: {{{{input}}}}
 </rail>
 """
 
-#################################################################################################
-### ExecutionModule
-#################################################################################################
-
-
+# ExecutionModule class for executing tasks within a larger workflow
 class ExecutionModule:
     def __init__(self, llm: BaseLLM, memory_module: MemoryModule, verbose: bool = True):
         self.memory_module = memory_module
@@ -78,6 +71,7 @@ class ExecutionModule:
         agent.max_tokens = 4000
         self.agent = AgentExecutor.from_agent_and_tools(agent=agent, tools=tools, verbose=verbose)
 
+    # Execute a given task and return the result
     def execute(self, task: Dict[str, Any]) -> Union[str, Document]:
         task_name = task["task_name"]
         objective = self.memory_module.objective
@@ -97,12 +91,7 @@ class ExecutionModule:
                 print(f"Value error running executor agent. Will retry {2-i} times")
         return "Failed to execute task."
 
-
-#################################################################################################
-### ExecutionAgent
-#################################################################################################
-
-
+# ExecutionAgent class for executing a single task within a larger workflow
 class ExecutionAgent(Agent):
     """An agent designed to execute a single task within a larger workflow."""
 
@@ -119,6 +108,7 @@ class ExecutionAgent(Agent):
         """Prefix to append the llm call with."""
         return "Thought:"
 
+    # Construct the agent scratchpad based on intermediate steps
     def _construct_scratchpad(self, intermediate_steps: List[Tuple[AgentAction, str]]) -> str:
         agent_scratchpad = super()._construct_scratchpad(intermediate_steps)
         if not isinstance(agent_scratchpad, str):
@@ -132,6 +122,7 @@ class ExecutionAgent(Agent):
         else:
             return agent_scratchpad
 
+    # Extract the tool and input from the LLM output
     def _extract_tool_and_input(self, llm_output: str) -> Optional[Tuple[str, str]]:
         print("=============================")
         print(llm_output)
@@ -140,20 +131,22 @@ class ExecutionAgent(Agent):
         print("=============================")
         return response["action"], response["input"]
 
+    # Get the full inputs for the agent
     def get_full_inputs(self, intermediate_steps: List[Tuple[AgentAction, str]], **kwargs: Any) -> Dict[str, Any]:
         inputs = super().get_full_inputs(intermediate_steps, **kwargs)
+
         prompts, stop = self.llm_chain.prep_prompts([inputs])
         prompts = [prompt.to_string() for prompt in prompts]
         full_prompt = "\n".join(prompts)
 
         if self.llm_chain.llm.get_num_tokens(full_prompt) > self.max_tokens - self.llm_chain.llm.max_tokens:
-            summarize_chain = create_summarize_chain(verbose=self.llm_chain.verbose)
-            summarize_tuple = lambda tup: (tup[0], summarize_chain(tup[1]))
+            summarize_tuple = lambda tup: (tup[0], summarize_text(tup[1], verbose=self.llm_chain.verbose))
             intermediate_steps = list(map(summarize_tuple, intermediate_steps))
             inputs = super().get_full_inputs(intermediate_steps, **kwargs)
 
         return inputs
 
+    # Create the prompt for the ExecutionAgent
     @classmethod
     def create_prompt(cls, output_parser: GuardrailsOutputParser) -> BasePromptTemplate:
         messages = [
@@ -164,6 +157,7 @@ class ExecutionAgent(Agent):
         print(prompt.messages)
         return prompt
 
+    # Initialize the ExecutionAgent with LLM and tools
     @classmethod
     def from_llm_and_tools(
         cls,
@@ -179,7 +173,8 @@ class ExecutionAgent(Agent):
                 for tool in tools
             ]
         )
-        complete_rail_spec = rail_spec.format(tool_strings_spec=tool_strings_spec)
+        operating_system = platform.platform()
+        complete_rail_spec = rail_spec.format(tool_strings_spec=tool_strings_spec, operating_system=operating_system)
         output_parser = GuardrailsOutputParser.from_rail_string(complete_rail_spec)
         prompt = cls.create_prompt(output_parser)
         llm_chain = LLMChain(

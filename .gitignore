@@ -15,4 +15,4 @@ code_qa.py
 searxng-docker.service
 caddy
 srv
-searxng/uwsgi.ini
+.pytest_cache

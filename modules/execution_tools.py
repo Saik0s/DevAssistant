@@ -16,7 +16,6 @@ from langchain.chat_models import ChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
 from langchain.agents import Tool, load_tools
 from langchain.agents.tools import BaseTool
-from langchain import OpenAI, PromptTemplate, LLMChain
 from datetime import datetime
 
 current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -39,32 +38,29 @@ def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
 
     tools = [
         wrap_tool_with_try_catch(tool)
-        for tool in load_tools(["python_repl", "searx-search"],
-                               llm=llm,
-                               searx_host="http://localhost:8080",
-                               unsecure=True)
+        for tool in load_tools(["python_repl"], llm=llm)
     ]
 
     # tools = []
     return tools + [
         bash_tool(),
-        write_tool(),
-        read_tool(),
+        # write_tool(),
+        # read_tool(),
         # tree_tool(),
-        mkdir_tool(),
+        # mkdir_tool(),
         #   replace_content_tool(),
         #   copy_tool(),
         # move_tool(),
-        delete_tool(),
-        append_tool(),
-        search_memory_tool(memory_module),
+        # delete_tool(),
+        # append_tool(),
+        # search_memory_tool(memory_module),
         # read_web_readability_tool(),
-        github_tool(),
+        # github_tool(),
         # read_remote_depth_tool(),
-        apply_patch_tool(),
-        read_web_unstructured_tool(),
-        bf4_qa_tool(),
-        directory_qa_tool(),
+        # apply_patch_tool(),
+        # read_web_unstructured_tool(),
+        # bf4_qa_tool(),
+        # directory_qa_tool(),
     ]
 
 
@@ -96,6 +92,19 @@ def parse_lines(input_str):  # sourcery skip: raise-specific-error
         lines = lines[1:-1]
 
     return lines
+
+def google_search_tool() -> Tool:
+    bash = BashProcess()
+
+    def wrapped_func(query: str) -> str:
+        try:
+            return bash.run(f"node google.js {query}")
+        except Exception as e:
+            return str(e)
+
+    return Tool(name="google_search",
+                description="This is Google. Use this tool to search the internet. Input should be a string",
+                func=wrapped_func)
 
 
 def bf4_qa_tool() -> Tool:

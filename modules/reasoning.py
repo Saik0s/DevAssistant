@@ -8,7 +8,7 @@ from typing import Dict, List
 
 
 class ReasoningModule:
-    first_task = "Analyze objective for the most optimal way to achieve it. max 500 characters"
+    first_task = "Organize and represent the key features in a structured format suitable for further processing and decision-making."
 
     def __init__(self, llm, memory_module: MemoryModule, verbose: bool = True):
         self.task_list = deque()

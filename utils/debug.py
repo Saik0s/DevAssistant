@@ -1,21 +1,10 @@
 from typing import Any, Dict, List, Optional, Union
-from modules.perception import PerceptionModule
-from modules.memory import MemoryModule
-from modules.reasoning import ReasoningModule
-from modules.execution import ExecutionModule
-from langchain.chat_models import ChatOpenAI
-from langchain.llms import OpenAI
-import logging as log
 from langchain.callbacks.shared import SharedCallbackManager
 from langchain.callbacks.openai_info import OpenAICallbackHandler, LLMResult
-
 import os
-
 
 def enable_verbose_logging():
     os.environ["LANGCHAIN_HANDLER"] = "langchain"
-    log_format = "%(asctime)s - %(levelname)s - %(message)s"
-    log.basicConfig(level=log.DEBUG, format=log_format)
 
     class DebugCallbackHandler(OpenAICallbackHandler):
         def on_llm_start(self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any) -> None:

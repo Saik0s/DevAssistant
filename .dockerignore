@@ -1,3 +1,13 @@
 .git
 runs
 chroma
+__pycache__
+history.json
+.prompt
+.DS_Store
+flask_react
+deeplake
+code_qa.py
+*.log
+*~
+.pytest_cache

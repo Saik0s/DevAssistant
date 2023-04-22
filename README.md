@@ -2,7 +2,7 @@
 <img src=".github/logo.png" alt="DevAssistant Logo"/>
 </div>
 
-**Dev Assistant** is a task driven autonomous agent developed using Python, OpenAI API, Pinecone, and Langchain, which is designed to assist programmers in accomplishing various tasks. 
+**Dev Assistant** is a task driven autonomous agent developed using Python, OpenAI API, Pinecone, and Langchain, which is designed to assist programmers in accomplishing various tasks.
 
 The agent operates on the basis of input objectives provided by the user, and it employs a range of tools to achieve the desired outcome.
 
@@ -40,7 +40,6 @@ You can run the project in different modes:
 The assistant makes use of several tools to complete tasks. Some of these tools include:
 
 - Python REPL
-- Searx search
 - Bash commands
 - File manipulation (read, write, delete, etc.)
 - GitHub integration
@@ -56,7 +55,6 @@ If you'd like to contribute to the project, feel free to submit a pull request o
 - [babyAGI](https://github.com/yoheinakajima/babyagi)
 - [Llama Index](https://github.com/jerryjliu/llama_index)
 - [langchain](https://github.com/hwchase17/langchain)
-- [SearXNG](https://github.com/searxng/searxng)
 
 ## Future Improvements
 
