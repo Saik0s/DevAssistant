@@ -93,6 +93,7 @@ Your task: {{{{input}}}}
 </rail>
 """
 
+
 # ExecutionModule class for executing tasks within a larger workflow
 class ExecutionModule:
     def __init__(self, llm: BaseLLM, memory_module: MemoryModule, verbose: bool = True):
@@ -121,8 +122,10 @@ class ExecutionModule:
                 print(f"Value error running executor agent. Will retry {2-i} times")
         return "Failed to execute task."
 
+
 # ExecutionAgent class for executing a single task within a larger workflow
 FINAL_ANSWER_ACTION = "final"
+
 
 class ExecutionOutputParser(GuardrailsOutputParser, AgentOutputParser):
     def get_format_instructions(self) -> str:
@@ -137,10 +140,9 @@ class ExecutionOutputParser(GuardrailsOutputParser, AgentOutputParser):
         except Exception as e:
             raise OutputParserException(f"Could not parse LLM output: {text}") from e
         if FINAL_ANSWER_ACTION in action:
-            return AgentFinish(
-                {"output": input}, text
-            )
+            return AgentFinish({"output": input}, text)
         return AgentAction(action, input, text)
+
 
 class ExecutionAgent(Agent):
     output_parser: ExecutionOutputParser = Field(default_factory=ExecutionOutputParser)
@@ -163,7 +165,9 @@ class ExecutionAgent(Agent):
             raise ValueError("agent_scratchpad should be of type string.")
         if agent_scratchpad:
             return (
-                f"This was your previous work " f"(but I haven't seen any of it! I only see what " f"you return as final answer):\n{agent_scratchpad}"
+                f"This was your previous work "
+                f"(but I haven't seen any of it! I only see what "
+                f"you return as final answer):\n{agent_scratchpad}"
             )
         else:
             return agent_scratchpad
@@ -192,8 +196,12 @@ class ExecutionAgent(Agent):
         **kwargs: Any,
     ) -> Agent:
         cls._validate_tools(tools)
-        tool_strings_spec = "\n".join([f'<case name="{tool.name}" description="{tool.description}"><string name="input"/></case>' for tool in tools])
-        print(tool_strings_spec)
+        tool_strings_spec = "\n".join(
+            [
+                f'<case name="{tool.name}" description="{tool.description}"><string name="input"/></case>'
+                for tool in tools
+            ]
+        )
         operating_system = platform.platform()
         complete_rail_spec = rail_spec.format(tool_strings_spec=tool_strings_spec, operating_system=operating_system)
         output_parser = ExecutionOutputParser.from_rail_string(complete_rail_spec)

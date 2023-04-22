@@ -8,3 +8,4 @@ guardrails-ai==0.1.5
 duckduckgo-search
 git+https://github.com/ShreyaR/guardrails.git@main
 faiss-cpu
+langchain_visualizer

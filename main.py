@@ -5,6 +5,7 @@ import os
 import random
 import string
 from typing import Optional
+import langchain_visualizer
 
 import pinecone
 from dotenv import load_dotenv
