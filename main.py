@@ -7,7 +7,7 @@ import langchain_visualizer
 
 from dotenv import load_dotenv
 from orchestrator import AgentOrchestrator
-from langchain.callbacks import SharedCallbackManager, OpenAICallbackHandler
+from langchain.callbacks import SharedCallbackManager, OpenAICallbackHandler, StdOutCallbackHandler
 
 os.environ["LANGCHAIN_HANDLER"] = "langchain"
 

@@ -34,18 +34,12 @@ rail_spec = """
             </object>
         </case>
     </choice>
-    <string name="thoughts" description="This is what I'm thinking right now" required="true" />
-    <string name="reasoning" description="This is why I'm thinking it will help lead to the user's desired result" required="true" />
-    <string name="plan" description="This is a description of my current plan of actions" required="true" />
 </output>
 
 
 <instructions>
 You are a Task Driven Autonomous Agent running on {operating_system} only capable of communicating with valid JSON, and no other text.
 You only give final answer when task is completed. You should always evaluate and see if additional actions are required.
-Your decisions must always be made independently without seeking user assistance.
-Play to your strengths as an LLM and pursue simple strategies with no legal complications.
-If you have completed all your tasks, make sure to use the "final" action.
 
 @complete_json_suffix_v2
 </instructions>
@@ -63,9 +57,6 @@ Working directory tree:
 
 Task: {{{{input}}}}
 
-Always provide all the required fields for the action you choose. Never provide any text outside of json.
-
-@json_suffix_prompt_v2_wo_none
 </prompt>
 
 
@@ -109,9 +100,6 @@ FINAL_ANSWER_ACTION = "final"
 
 
 class ExecutionOutputParser(GuardrailsOutputParser, AgentOutputParser):
-    def get_format_instructions(self) -> str:
-        return self.guard.instructions.source
-
     def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
         # sourcery skip: avoid-builtin-shadow
         try:
@@ -121,7 +109,7 @@ class ExecutionOutputParser(GuardrailsOutputParser, AgentOutputParser):
         except Exception as e:
             print(e)
             print(f"Could not parse LLM output: {text}")
-            return AgentAction("fix_output", "incorrect output format, fix it", text)
+            return AgentFinish({"output": "Incorrect output format, need to try again"}, text)
         if FINAL_ANSWER_ACTION in action:
             return AgentFinish({"output": input}, text)
         return AgentAction(action, input, text)
@@ -142,19 +130,24 @@ class ExecutionAgent(Agent):
 
     def _construct_scratchpad(self, intermediate_steps: List[Tuple[AgentAction, str]]) -> Union[str, List[BaseMessage]]:
         """Construct the scratchpad that lets the agent continue its thought process."""
-        thoughts: List[BaseMessage] = []
-        for action, observation in intermediate_steps[-2:]:
-            thoughts.append(AIMessage(content=action.log))
-            human_message = HumanMessage(content=f"Tool Response: {observation}")
-            thoughts.append(human_message)
-
-        thoughts.append(
-            HumanMessage(
-                content=(
-                    "Execute the action that will lead you to the next step or execute final action if task is complete."
-                )
-            )
-        )
+        if not intermediate_steps:
+            return []
+        first_action, first_observation = intermediate_steps[0]
+        last_action, last_observation = intermediate_steps[-1]
+        thoughts: List[BaseMessage] = [
+            AIMessage(content=first_action.log),
+            HumanMessage(content=f"Tool Response: {first_observation}"),
+            AIMessage(content=last_action.log),
+            HumanMessage(content=f"Tool Response: {last_observation}"),
+        ]
+        # thoughts.append(HumanMessage(content=self.output_parser.get_format_instructions()))
+        # thoughts.append(
+        #     HumanMessage(
+        #         content=(
+        #             "Execute the action that will lead you to the next step or execute final action if task is complete."
+        #         )
+        #     )
+        # )
         return thoughts
 
     def get_full_inputs(self, intermediate_steps: List[Tuple[AgentAction, str]], **kwargs: Any) -> Dict[str, Any]:
@@ -183,6 +176,7 @@ class ExecutionAgent(Agent):
         tools: Sequence[GuardRailTool],
         callback_manager: Optional[BaseCallbackManager] = None,
         output_parser: Optional[ExecutionOutputParser] = None,
+        verbose: bool = True,
         **kwargs: Any,
     ) -> Agent:
         cls._validate_tools(tools)
@@ -201,12 +195,13 @@ class ExecutionAgent(Agent):
         )
         operating_system = platform.platform()
         complete_rail_spec = rail_spec.format(tool_strings_spec=tool_strings_spec, operating_system=operating_system)
-        output_parser = ExecutionOutputParser.from_rail_string(complete_rail_spec)
+        output_parser = ExecutionOutputParser.from_rail_string(complete_rail_spec, num_reasks=3)
         prompt = cls.create_prompt(output_parser)
         llm_chain = LLMChain(
             llm=llm,
             prompt=prompt,
             callback_manager=callback_manager,
+            verbose=verbose,
         )
         tool_names = [tool.name for tool in tools]
         return cls(

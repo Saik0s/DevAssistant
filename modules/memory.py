@@ -43,10 +43,14 @@ class MemoryModule:
         self.context = text
 
     def _add_to_vectorstore(self, texts: List[str]):
-        for text in texts:
-            text_id = str(uuid.uuid4())
-            splitter = NLTKTextSplitter(chunk_size=1000, chunk_overlap=0)
-            text_chunks = splitter.split_text(text)
-            self.vectorstore.add_documents(
-                [Document(page_content=chunk, metadata={"text_id": text_id}) for chunk in text_chunks]
-            )
+        try:
+            for text in texts:
+                text_id = str(uuid.uuid4())
+                splitter = NLTKTextSplitter(chunk_size=1000, chunk_overlap=0)
+                text_chunks = splitter.split_text(text)
+                self.vectorstore.add_documents(
+                    [Document(page_content=chunk, metadata={"text_id": text_id}) for chunk in text_chunks]
+                )
+        except Exception as e:
+            print(f"An error occurred during adding documents to vectorstore: {e}")
+

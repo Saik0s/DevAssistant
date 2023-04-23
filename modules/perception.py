@@ -17,7 +17,7 @@ class PerceptionModule:
         name = self.task_enhancement_chain.run(objective=objective, context=summary, task=name)
         if "Task: " in name:
             name = name.split("Task: ", 1)[1].strip()
-        return {"task_id": id, "task_name": name}
+        return {"task_id": id, "task_name": name.strip()}
 
     def process_result(self, text):
         # TODO: Add processing for text

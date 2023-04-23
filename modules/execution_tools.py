@@ -87,7 +87,7 @@ def get_tools(llm, memory_module: MemoryModule) -> List[GuardRailTool]:
 
 
 BeautifulSoupWebReader = download_loader("BeautifulSoupWebReader")
-bash = BashProcess(strip_newlines=True, return_err_output=True)
+bash = BashProcess(strip_newlines=True, return_err_output=False)
 
 
 def query_website(url: str, question: str) -> str:
@@ -148,7 +148,7 @@ def read_file(relative_path: str) -> str:
 
 
 def tree() -> str:
-    return bash.run(f"cd {PREFIX_PATH} && tree --noreport -L 2")
+    return bash.run(f"tree --noreport -L 2 {PREFIX_PATH}")
 
 
 def make_directory(relative_path: str) -> str:
