@@ -26,7 +26,7 @@ rail_spec = """
 <rail version="0.1">
 
 <output>
-    <choice name="action" description="Action that you want to take, mandatory field" on-fail-choice="reask"  required="true">
+    <choice name="action" description="Action that you want to take, mandatory field" on-fail-choice="reask" required="true">
 {tool_strings_spec}
         <case name="final">
             <object name="final" >
@@ -98,8 +98,7 @@ class ExecutionOutputParser(GuardrailsOutputParser):
     def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
         # sourcery skip: avoid-builtin-shadow
         try:
-            result = super().parse(text)
-            # result = json.loads(text)
+            result = json.loads(text)
             action = result["action"]
             input = text
         except Exception as e:
