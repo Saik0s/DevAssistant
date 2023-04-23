@@ -119,8 +119,9 @@ class ExecutionOutputParser(GuardrailsOutputParser, AgentOutputParser):
             action = result["action"]
             input = text
         except Exception as e:
+            print(e)
             print(f"Could not parse LLM output: {text}")
-            raise OutputParserException(f"Could not parse LLM output: {text}") from e
+            return AgentAction("fix_output", "incorrect output format, fix it", text)
         if FINAL_ANSWER_ACTION in action:
             return AgentFinish({"output": input}, text)
         return AgentAction(action, input, text)
