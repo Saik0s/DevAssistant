@@ -32,7 +32,7 @@ class TaskEnhancementChain(LLMChain):
             "Ultimate objective: {objective}\n"
             "Context: {context}\n\n"
             "Task: {task}\n\n"
-            "Now write a single sentence describing the task and the expected end result.\n"
+            "Now write a single sentence describing the task and the expected end result. Phrase it to be call to action instead of description.\n"
         )
         prompt = PromptTemplate(
             template=template,

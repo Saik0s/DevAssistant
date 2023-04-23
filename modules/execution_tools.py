@@ -2,13 +2,13 @@ import json
 import shutil
 import re
 import os
-from typing import Any, Dict, List
+from typing import Dict, List
 from pathlib import Path
 from langchain.utilities import BashProcess
 from langchain.tools.python.tool import PythonREPLTool
 from modules.memory import MemoryModule
 from llama_index.optimization.optimizer import SentenceEmbeddingOptimizer
-from llama_index import GPTSimpleVectorIndex, SimpleDirectoryReader
+from llama_index import GPTSimpleVectorIndex
 from llama_index import download_loader
 from langchain.vectorstores import DeepLake
 from langchain.utilities import BashProcess
@@ -16,14 +16,15 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
-from langchain.agents import Tool, load_tools
+from langchain.agents import Tool
 from langchain.agents.tools import BaseTool
 from datetime import datetime
 from rich import print
 
+
+
 current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
 PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output_{current_datetime}/"
-
 
 class GuardRailTool(BaseTool):
     child_tool: BaseTool
@@ -37,9 +38,6 @@ class GuardRailTool(BaseTool):
     def _run(self, input_str: str) -> str:  # sourcery skip: avoid-builtin-shadow
         print(input_str)
         try:
-            if len(self.input_args) == 1:
-                return self.child_tool.run(input_str)
-
             result = json.loads(input_str)
             action = result["action"]
             input = result[action] if action in result else result
@@ -80,11 +78,12 @@ def get_tools(llm, memory_module: MemoryModule) -> List[GuardRailTool]:
         # read_web_unstructured_tool,
         bf4_qa_tool,
         git_tool,
-        # directory_qa_tool,
+        directory_qa_tool,
     ]
 
 
 BeautifulSoupWebReader = download_loader("BeautifulSoupWebReader")
+bash = BashProcess(strip_newlines=True, return_err_output=True)
 
 
 def query_website(url: str, question: str) -> str:
@@ -103,23 +102,15 @@ def query_local_directory(q: str) -> str:
 
 
 def bash_func(command):
-    bash = BashProcess()
     # Check if command uses sudo
     if "sudo" in command:
         return "Error: Command cannot use sudo"
-    if "apt" in command or "apt-get" in command:
-        return "Error: Command cannot use apt or apt-get"
-
-    # Check if command tries to do anything outside of PREFIX_PATH
-    if any(arg.startswith("/") for arg in command.split()):
-        return "Error: Command cannot access files outside of current work directory"
     return bash.run(f"cd {PREFIX_PATH} && {command}")
 
 
 def load_github_repo(url: str, branch: str, question: str) -> str:
     # Create a unique identifier for the repository
     repo_id = f"{url.split('/')[-1]}-{branch}"
-
 
     # Check if the vector is already stored locally
     local_vector_path = f"{PREFIX_PATH}/vectors/{repo_id}"
@@ -133,7 +124,7 @@ def load_github_repo(url: str, branch: str, question: str) -> str:
         )
     else:
         # Clone the repository into the working folder
-        BashProcess().run(f"cd {PREFIX_PATH} && git clone {url} --branch {branch} {repo_id}")
+        bash.run(f"cd {PREFIX_PATH} && git clone {url} --branch {branch} {repo_id}")
 
         # Load the documents from the cloned repository
         GPTRepoReader = download_loader("GPTRepoReader")
@@ -181,7 +172,7 @@ def apply_patch(patch_content: str) -> str:
     with open(patch_file, "w") as file:
         file.write(patch_content)
 
-    bash = BashProcess()
+    bash = bash
     result = bash.run(f"cd {PREFIX_PATH} && patch -p1 -u -f -i temp_patch_file.patch")
 
     os.remove(patch_file)
@@ -196,8 +187,7 @@ def read_file(relative_path: str) -> str:
 
 
 def tree() -> str:
-    bash = BashProcess()
-    return bash.run(f"cd {PREFIX_PATH} && tree --noreport .")
+    return bash.run(f"cd {PREFIX_PATH} && tree --noreport -L 2")
 
 
 def make_directory(relative_path: str) -> str:
@@ -252,10 +242,12 @@ def append_file(relative_path: str, content: str) -> str:
         file.write(content)
     return f"Appended content to file at {relative_path}"
 
+
 # Git tool function
 def git_func(relative_path: str, command: str) -> str:
-    bash = BashProcess(return_err_output=True)
+    bash = basheturn_err_output=True)
     return bash.run(f"cd {relative_path} && git {command}")
+
 
 # Git tool
 git_tool = GuardRailTool(
@@ -266,14 +258,14 @@ git_tool = GuardRailTool(
     ),
     input_args={
         "relative_path": "The relative path of the folder where git command should be executed.",
-        "command": "The git command to execute."
+        "command": "The git command to execute.",
     },
 )
 
 google_search_tool = GuardRailTool(
     child_tool=Tool(
         name="google_search",
-        func=lambda query: BashProcess(return_err_output=True).run(
+        func=lambda query: basheturn_err_output=True).run(
             f'cd {os.path.dirname(os.path.realpath(__file__))}/tools && node google.js "{query}"'
         ),
         description="This is Google. Use this tool to search the internet. Input should be a string",
@@ -293,7 +285,6 @@ bash_tool = GuardRailTool(
 python_tool = GuardRailTool(
     child_tool=PythonREPLTool(), input_args={"action_input": "The Python code to execute in the REPL environment."}
 )
-
 python_tool.name = "python_repl"
 
 
@@ -333,11 +324,13 @@ read_remote_depth_tool = GuardRailTool(
     },
 )
 
-simple_web_page_reader = download_loader("SimpleWebPageReader")(html_to_text = True)
+simple_web_page_reader = download_loader("SimpleWebPageReader")(html_to_text=True)
+
 
 def read_simple_web_page(urls: List[str]) -> List[str]:
     documents = simple_web_page_reader.load_data(urls)
     return [doc.text for doc in documents]
+
 
 simple_web_page_reader_tool = GuardRailTool(
     child_tool=Tool(
@@ -347,6 +340,7 @@ simple_web_page_reader_tool = GuardRailTool(
     ),
     input_args={"action_input": "The list of URLs to read using the SimpleWebPageReader."},
 )
+
 
 def search_memory_tool_factory(memory_module: MemoryModule):
     def search_memory(input_str: str) -> str:

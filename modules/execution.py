@@ -144,9 +144,7 @@ class ExecutionAgent(Agent):
         thoughts.append(
             HumanMessage(
                 content=(
-                    "Think if you need to take any additional steps. "
-                    "If not, give a final answer. "
-                    " If you need to take multiple steps, choose the action that will lead you to the next step."
+                    "If you need to take multiple steps to complete this task - choose the action that will lead you to the next step."
                 )
             )
         )

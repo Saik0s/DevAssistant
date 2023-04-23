@@ -17,3 +17,4 @@ caddy
 srv
 .pytest_cache
 tests.py
+vectors

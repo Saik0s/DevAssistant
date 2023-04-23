@@ -7,6 +7,7 @@ import langchain_visualizer
 
 from dotenv import load_dotenv
 from orchestrator import AgentOrchestrator
+from langchain.callbacks import SharedCallbackManager, OpenAICallbackHandler
 
 os.environ["LANGCHAIN_HANDLER"] = "langchain"
 
@@ -31,6 +32,7 @@ def parse_arguments():
 def setup_logging(verbose: bool):
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(level=level)
+    SharedCallbackManager().add_handler(OpenAICallbackHandler())
 
 
 async def run_orchestrator(objective: str, verbose: bool, max_iterations: Optional[int]):
