@@ -27,7 +27,9 @@ learning_template = (
     "Last task output: {last_output}\n"
     "Pending tasks: {pending_tasks}\n"
     "Context: {context}\n\n"
-    "Provide concise instructions for behavior adjustments to improve system efficiency."
+    "Provide concise and short overview of current state of the project."
+    " Add some instructions for task driven agent on how to produce better result. "
+    "Only add instructions if you have any good ones."
 )
 
 learning_prompt = PromptTemplate(

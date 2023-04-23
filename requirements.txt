@@ -9,3 +9,4 @@ duckduckgo-search
 git+https://github.com/ShreyaR/guardrails.git@main
 faiss-cpu
 langchain_visualizer
+deeplake

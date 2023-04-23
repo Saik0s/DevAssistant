@@ -21,5 +21,4 @@ RUN pip install -U SQLAlchemy
 COPY . .
 
 RUN python -c "import nltk; nltk.download('punkt')"
-CMD [ "python", "-u", "-m" , "main"]
-# CMD [ "python", "-u", "-m" , "main", "--test", "--verbose"]
+CMD [ "python", "-u", "-m" , "main", "--verbose"]

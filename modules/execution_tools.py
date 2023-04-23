@@ -42,8 +42,10 @@ class GuardRailTool(BaseTool):
 
             result = json.loads(input_str)
             action = result["action"]
-            input = result[action]["action_input"] if action in result else result
+            input = result[action] if action in result else result
             input.pop("action", None)
+            if len(input) == 1:
+                input = list(input.values())[0]
             return self.child_tool.run(input)
 
         except Exception as e:
@@ -72,12 +74,12 @@ def get_tools(llm, memory_module: MemoryModule) -> List[GuardRailTool]:
         delete_tool,
         append_tool,
         search_memory_tool_factory(memory_module),
-        read_web_readability_tool,
-        # github_tool,
+        simple_web_page_reader_tool,
         # read_remote_depth_tool,
         apply_patch_tool,
         # read_web_unstructured_tool,
         bf4_qa_tool,
+        git_tool,
         # directory_qa_tool,
     ]
 
@@ -116,7 +118,8 @@ def bash_func(command):
 
 def load_github_repo(url: str, branch: str, question: str) -> str:
     # Create a unique identifier for the repository
-    repo_id = f"{url}-{branch}"
+    repo_id = f"{url.split('/')[-1]}-{branch}"
+
 
     # Check if the vector is already stored locally
     local_vector_path = f"{PREFIX_PATH}/vectors/{repo_id}"
@@ -129,10 +132,13 @@ def load_github_repo(url: str, branch: str, question: str) -> str:
             embedding_function=embeddings,
         )
     else:
-        # Load repository by URL and branch
-        GithubRepoLoader = download_loader("GithubRepoLoader")
-        loader = GithubRepoLoader(url=url, branch=branch)
-        documents = loader.load_data()
+        # Clone the repository into the working folder
+        BashProcess().run(f"cd {PREFIX_PATH} && git clone {url} --branch {branch} {repo_id}")
+
+        # Load the documents from the cloned repository
+        GPTRepoReader = download_loader("GPTRepoReader")
+        loader = GPTRepoReader()
+        documents = loader.load_data(repo_path=PREFIX_PATH + repo_id)
         docs = [doc.to_langchain_format() for doc in documents]
 
         text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
@@ -160,19 +166,6 @@ def read_remote_depth(url: str, depth: int, query: str) -> str:
     documents = loader.load_data(url=url)
     index = GPTSimpleVectorIndex.from_documents(documents)
     return index.query(query, optimizer=SentenceEmbeddingOptimizer(percentile_cutoff=0.5))
-
-
-def read_web_unstructured(url: str) -> str:
-    UnstructuredURLLoader = download_loader("UnstructuredURLLoader")
-    urls = [url]
-    loader = UnstructuredURLLoader(urls=urls, continue_on_failure=False, headers={"User-Agent": ""})
-    return loader.load()
-
-
-def read_web_readability(url: str) -> str:
-    ReadabilityWebPageReader = download_loader("ReadabilityWebPageReader")
-    loader = ReadabilityWebPageReader()
-    return loader.load_data(url=url)
 
 
 def write_file(relative_path: str, content: str) -> str:
@@ -259,11 +252,28 @@ def append_file(relative_path: str, content: str) -> str:
         file.write(content)
     return f"Appended content to file at {relative_path}"
 
+# Git tool function
+def git_func(relative_path: str, command: str) -> str:
+    bash = BashProcess(return_err_output=True)
+    return bash.run(f"cd {relative_path} && git {command}")
+
+# Git tool
+git_tool = GuardRailTool(
+    child_tool=Tool(
+        name="git",
+        func=git_func,
+        description="Execute a git command within the current work directory. Input is the command.",
+    ),
+    input_args={
+        "relative_path": "The relative path of the folder where git command should be executed.",
+        "command": "The git command to execute."
+    },
+)
 
 google_search_tool = GuardRailTool(
     child_tool=Tool(
         name="google_search",
-        func=lambda query: BashProcess().run(
+        func=lambda query: BashProcess(return_err_output=True).run(
             f'cd {os.path.dirname(os.path.realpath(__file__))}/tools && node google.js "{query}"'
         ),
         description="This is Google. Use this tool to search the internet. Input should be a string",
@@ -310,19 +320,6 @@ directory_qa_tool = GuardRailTool(
     input_args={"action_input": "The question to ask about the content of the local directory."},
 )
 
-github_tool = GuardRailTool(
-    child_tool=Tool(
-        name="qa_github_repository",
-        func=load_github_repo,
-        description="Load a GitHub repository by URL and ask a provided question. Input format: url\\nbranch\\nquestion.",
-    ),
-    input_args={
-        "url": "The URL of the GitHub repository.",
-        "branch": "The branch of the repository to load.",
-        "question": "The question to ask about the content of the repository.",
-    },
-)
-
 read_remote_depth_tool = GuardRailTool(
     child_tool=Tool(
         name="read_remote_depth",
@@ -336,24 +333,20 @@ read_remote_depth_tool = GuardRailTool(
     },
 )
 
-read_web_unstructured_tool = GuardRailTool(
-    child_tool=Tool(
-        name="read_webpage_unstructured",
-        func=read_web_unstructured,
-        description="Read unstructured data from a webpage. Input is the url.",
-    ),
-    input_args={"action_input": "The URL of the webpage to load unstructured data from."},
-)
+simple_web_page_reader = download_loader("SimpleWebPageReader")(html_to_text = True)
 
-read_web_readability_tool = GuardRailTool(
-    child_tool=Tool(
-        name="read_webpage",
-        func=read_web_readability,
-        description="Useful when you need to get text content from the webpage. Input is the url.",
-    ),
-    input_args={"action_input": "The URL of the webpage to load text content from."},
-)
+def read_simple_web_page(urls: List[str]) -> List[str]:
+    documents = simple_web_page_reader.load_data(urls)
+    return [doc.text for doc in documents]
 
+simple_web_page_reader_tool = GuardRailTool(
+    child_tool=Tool(
+        name="read_simple_web_page",
+        func=read_simple_web_page,
+        description="Read web pages using the SimpleWebPageReader. Input is a list of URLs.",
+    ),
+    input_args={"action_input": "The list of URLs to read using the SimpleWebPageReader."},
+)
 
 def search_memory_tool_factory(memory_module: MemoryModule):
     def search_memory(input_str: str) -> str:
