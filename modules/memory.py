@@ -1,15 +1,18 @@
 from langchain.llms import BaseLLM
 from langchain.text_splitter import NLTKTextSplitter, Document
-from langchain.vectorstores import Pinecone, FAISS
+from langchain.vectorstores import FAISS
+from langchain.vectorstores.base import VectorStoreRetriever
 from langchain.docstore import InMemoryDocstore
 from langchain.embeddings import OpenAIEmbeddings
 from typing import List
 import faiss
+import uuid
 
 from utils.helpers import summarize_text
 
 
 class MemoryModule:
+  vectorstore: VectorStoreRetriever
     def __init__(self, llm: BaseLLM, verbose: bool = True):
         self.llm = llm
         self.verbose = verbose
@@ -40,6 +43,8 @@ class MemoryModule:
 
     def _add_to_vectorstore(self, texts: List[str]):
         for text in texts:
+            text_id = str(uuid.uuid4())
             splitter = NLTKTextSplitter(chunk_size=1000, chunk_overlap=0)
             text_chunks = splitter.split_text(text)
-            self.vectorstore.add_texts(text_chunks)
+            self.vectorstore.add_documents([Document(page_content=chunk, metadata={"text_id": text_id}) for chunk in text_chunks])
+

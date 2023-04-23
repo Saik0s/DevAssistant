@@ -107,18 +107,26 @@ class ExecutionOutputParser(GuardrailsOutputParser, AgentOutputParser):
         return self.guard.instructions.source
 
     def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
+        # sourcery skip: avoid-builtin-shadow
         try:
             # result = self.guard.parse(text)
             result = json.loads(text)
             action = result["action"]
-            input = result["action_input"]
+            input = (
+                result[action]["action_input"]
+                if action in result and "action_input" in result[action]
+                else result.get("action_input", None)
+            )
+
         except Exception as e:
             print(f"Could not parse LLM output: {text}")
             raise e
             # raise OutputParserException(f"Could not parse LLM output: {text}") from e
         if FINAL_ANSWER_ACTION in action:
             return AgentFinish({"output": input}, text)
-        return AgentAction(action, input, text)
+        action = AgentAction(action, input, text)
+        print(action)
+        return action
 
 
 class ExecutionAgent(Agent):

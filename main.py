@@ -34,7 +34,8 @@ def setup_logging(verbose: bool):
 
 async def run_orchestrator(objective: str, verbose: bool, max_iterations: Optional[int]):
     orchestrator = AgentOrchestrator.from_llm(verbose=verbose, max_iterations=max_iterations)
-    await orchestrator({"objective": objective})
+    orchestrator({"objective": objective})
+    return
 
 
 async def run_visualizer(objective: str, verbose: bool, max_iterations: Optional[int]):
