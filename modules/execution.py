@@ -12,10 +12,11 @@ from langchain.llms.base import BaseLLM
 from langchain.output_parsers import GuardrailsOutputParser
 from langchain.prompts.base import BasePromptTemplate
 from langchain.prompts.chat import ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate
-from langchain.schema import AgentAction, AgentFinish, BaseLanguageModel, OutputParserException
+from langchain.schema import AgentAction, AgentFinish, BaseLanguageModel
 from langchain.tools import BaseTool
 from langchain.prompts.chat import MessagesPlaceholder
 from langchain.schema import AIMessage, BaseMessage, HumanMessage
+from langchain.schema import OutputParserException
 from modules.execution_tools import GuardRailTool, get_tools, tree_tool
 from modules.memory import MemoryModule
 from rich import print
@@ -109,24 +110,15 @@ class ExecutionOutputParser(GuardrailsOutputParser, AgentOutputParser):
     def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
         # sourcery skip: avoid-builtin-shadow
         try:
-            # result = self.guard.parse(text)
             result = json.loads(text)
             action = result["action"]
-            input = (
-                result[action]["action_input"]
-                if action in result and "action_input" in result[action]
-                else result.get("action_input", None)
-            )
-
+            input = text
         except Exception as e:
             print(f"Could not parse LLM output: {text}")
-            raise e
-            # raise OutputParserException(f"Could not parse LLM output: {text}") from e
+            raise OutputParserException(f"Could not parse LLM output: {text}") from e
         if FINAL_ANSWER_ACTION in action:
             return AgentFinish({"output": input}, text)
-        action = AgentAction(action, input, text)
-        print(action)
-        return action
+        return AgentAction(action, input, text)
 
 
 class ExecutionAgent(Agent):

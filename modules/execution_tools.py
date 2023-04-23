@@ -1,3 +1,4 @@
+import json
 import shutil
 import re
 import os
@@ -18,6 +19,7 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.agents import Tool, load_tools
 from langchain.agents.tools import BaseTool
 from datetime import datetime
+from rich import print
 
 current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
 PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output_{current_datetime}/"
@@ -28,15 +30,27 @@ class GuardRailTool(BaseTool):
     input_args: Dict[str, str]
 
     def __init__(self, child_tool: BaseTool, input_args: Dict[str, str]):
-        super().__init__(name = child_tool.name, description = child_tool.description, child_tool=child_tool, input_args=input_args)
+        super().__init__(
+            name=child_tool.name, description=child_tool.description, child_tool=child_tool, input_args=input_args
+        )
 
-    def _run(self, input_str: str) -> str:
+    def _run(self, input_str: str) -> str:  # sourcery skip: avoid-builtin-shadow
+        print(input_str)
         try:
-            return self.child_tool.run(input_str)
-        except Exception as e:
-            return f"Error occurred while executing tool {self.name}: {str(e)}"
+            if len(self.input_args) == 1:
+                return self.child_tool.run(input_str)
 
-    async def _arun(self, *args: Any, **kwargs: Any) -> str:
+            result = json.loads(input_str)
+            action = result["action"]
+            input = result[action]["action_input"] if action in result else result
+            input.pop("action", None)
+            return self.child_tool.run(input)
+
+        except Exception as e:
+            print(e)
+            return f"Error occurred while executing tool {self.name}: {str(e)}\ninput_str: {input_str}"
+
+    async def _arun(self, input_str: str) -> str:
         raise NotImplementedError("Tool does not support async")
 
 
@@ -48,23 +62,23 @@ def get_tools(llm, memory_module: MemoryModule) -> List[GuardRailTool]:
     return tools + [
         bash_tool,
         google_search_tool,
-        # write_tool(),
-        # read_tool(),
-        # tree_tool(),
-        # mkdir_tool(),
-        #   replace_content_tool(),
-        #   copy_tool(),
-        # move_tool(),
-        # delete_tool(),
-        # append_tool(),
+        write_tool,
+        read_tool,
+        # tree_tool,
+        mkdir_tool,
+        #   replace_content_tool,
+        #   copy_tool,
+        move_tool,
+        delete_tool,
+        append_tool,
         search_memory_tool_factory(memory_module),
-        # read_web_readability_tool(),
-        # github_tool(),
-        # read_remote_depth_tool(),
-        # apply_patch_tool(),
-        # read_web_unstructured_tool(),
-        # bf4_qa_tool(),
-        # directory_qa_tool(),
+        read_web_readability_tool,
+        # github_tool,
+        # read_remote_depth_tool,
+        apply_patch_tool,
+        # read_web_unstructured_tool,
+        bf4_qa_tool,
+        # directory_qa_tool,
     ]
 
 
@@ -161,7 +175,6 @@ def read_web_readability(url: str) -> str:
     return loader.load_data(url=url)
 
 
-
 def write_file(relative_path: str, content: str) -> str:
     path = PREFIX_PATH + relative_path.replace("..", "")
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -191,7 +204,7 @@ def read_file(relative_path: str) -> str:
 
 def tree() -> str:
     bash = BashProcess()
-    return bash.run(f"cd {PREFIX_PATH} && tree --noreport")
+    return bash.run(f"cd {PREFIX_PATH} && tree --noreport .")
 
 
 def make_directory(relative_path: str) -> str:
@@ -268,10 +281,7 @@ bash_tool = GuardRailTool(
 )
 
 python_tool = GuardRailTool(
-    child_tool=PythonREPLTool(),
-    input_args={
-        "action_input": "The Python code to execute in the REPL environment."
-    }
+    child_tool=PythonREPLTool(), input_args={"action_input": "The Python code to execute in the REPL environment."}
 )
 
 python_tool.name = "python_repl"
@@ -392,7 +402,7 @@ read_tool = GuardRailTool(
 tree_tool = GuardRailTool(
     child_tool=Tool(
         name="directory_tree",
-        func=tree,
+        func=lambda _: tree(),
         description="Display the directory tree.",
     ),
     input_args={"action_input": "No input required."},

@@ -13,6 +13,7 @@ from utils.helpers import summarize_text
 
 class MemoryModule:
     vectorstore: VectorStoreRetriever
+
     def __init__(self, llm: BaseLLM, verbose: bool = True):
         self.llm = llm
         self.verbose = verbose
@@ -46,5 +47,6 @@ class MemoryModule:
             text_id = str(uuid.uuid4())
             splitter = NLTKTextSplitter(chunk_size=1000, chunk_overlap=0)
             text_chunks = splitter.split_text(text)
-            self.vectorstore.add_documents([Document(page_content=chunk, metadata={"text_id": text_id}) for chunk in text_chunks])
-
+            self.vectorstore.add_documents(
+                [Document(page_content=chunk, metadata={"text_id": text_id}) for chunk in text_chunks]
+            )

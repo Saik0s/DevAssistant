@@ -7,11 +7,12 @@ import langchain_visualizer
 
 from dotenv import load_dotenv
 from orchestrator import AgentOrchestrator
-from utils.debug import enable_verbose_logging
+
+os.environ["LANGCHAIN_HANDLER"] = "langchain"
 
 
 def load_environment_variables():
-    load_dotenv('.envrc')
+    load_dotenv(".envrc")
     return {
         "openai_api_key": os.environ["OPENAI_API_KEY"],
     }
@@ -56,9 +57,6 @@ def main():
         objective = "Write a program that takes 2 number as input and outputs the sum of the two numbers, save the program as sum.py. write tests for the program and run the tests, make sure the tests pass."
     else:
         objective = args.obj or input("Please enter the objective: ")
-
-    if verbose:
-        enable_verbose_logging()
 
     setup_logging(verbose)
 
