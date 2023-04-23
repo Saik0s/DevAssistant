@@ -8,8 +8,6 @@ from typing import List
 import faiss
 import uuid
 
-from utils.helpers import summarize_text
-
 
 class MemoryModule:
     vectorstore: VectorStoreRetriever
@@ -21,16 +19,13 @@ class MemoryModule:
         embedding_size = 1536
         index = faiss.IndexFlatL2(embedding_size)
         self.vectorstore = FAISS(embeddings_model.embed_query, index, InMemoryDocstore({}), {}).as_retriever(
-            search_kwargs={"k": 8}
+            search_kwargs={"k": 3}
         )
 
     def retrieve_related_information(self, query):
         try:
             search_results = self.vectorstore.get_relevant_documents(query)
-            context = "\n".join([doc.page_content for doc in search_results])
-            if len(context) > 10000:
-                context = summarize_text(search_results, max_chars=10000, verbose=self.verbose)
-            return context
+            return "\n".join([doc.page_content for doc in search_results])[:10000]
         except Exception as e:
             print(f"An error occurred during similarity search: {e}")
             return ""
@@ -53,4 +48,3 @@ class MemoryModule:
                 )
         except Exception as e:
             print(f"An error occurred during adding documents to vectorstore: {e}")
-

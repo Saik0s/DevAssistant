@@ -58,9 +58,10 @@ class AgentOrchestrator(Chain):
                 self.memory_module.store_result(execution_result, processed_task)
                 print(f"\n{Fore.LIGHTMAGENTA_EX}Saved new result to memory{Fore.RESET}")
 
-                # Process the execution result using PerceptionModule before storing it in the MemoryModule
-                processed_execution_result = self.perception_module.process_result(execution_result)
-                self.print_optimized_task_result(processed_execution_result)
+                # # Process the execution result using PerceptionModule before storing it in the MemoryModule
+                # processed_execution_result = self.perception_module.process_result(execution_result)
+                # self.print_optimized_task_result(processed_execution_result)
+                processed_execution_result = execution_result
 
                 ## Evaluate the task result
                 is_finished, final_answer = self.evaluation_module.evaluate_from(
@@ -73,16 +74,16 @@ class AgentOrchestrator(Chain):
                 if is_finished:
                     break
 
-                new_memory = self.learning_module.learn_from(
-                    observation=processed_execution_result,
-                    completed_tasks=list(self.reasoning_module.completed_task_list),
-                    pending_tasks=list(self.reasoning_module.task_list),
-                )
-                self.print_new_memory(new_memory)
+                # new_memory = self.learning_module.learn_from(
+                #     observation=processed_execution_result,
+                #     completed_tasks=list(self.reasoning_module.completed_task_list),
+                #     pending_tasks=list(self.reasoning_module.task_list),
+                # )
+                # self.print_new_memory(new_memory)
 
-                # Step 3: Store the result in Memory
-                self.memory_module.store(new_memory)
-                print(f"\n{Fore.LIGHTMAGENTA_EX}Saved new learnings to memory{Fore.RESET}")
+                # # Step 3: Store the result in Memory
+                # self.memory_module.store(new_memory)
+                # print(f"\n{Fore.LIGHTMAGENTA_EX}Saved new learnings to memory{Fore.RESET}")
 
                 # Step 4: Create new tasks and reprioritize task list
                 self.reasoning_module.update_tasks(processed_task, processed_execution_result)

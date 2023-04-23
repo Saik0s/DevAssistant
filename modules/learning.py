@@ -29,7 +29,7 @@ learning_template = (
     "Context: {context}\n\n"
     "Provide concise and short overview of current state of the project."
     " Add some instructions for task driven agent on how to produce better result. "
-    "Only add instructions if you have any good ones."
+    "Only add instructions if you have any good ones. Put everything in one paragraph of maximum 200 characters"
 )
 
 learning_prompt = PromptTemplate(

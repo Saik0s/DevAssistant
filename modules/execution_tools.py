@@ -58,7 +58,7 @@ class GuardRailTool(BaseTool):
 
 
 def get_tools(llm, memory_module: MemoryModule) -> List[GuardRailTool]:
-    mkdir_tool("")
+    make_directory(".")
 
     tools = []
 
@@ -74,15 +74,15 @@ def get_tools(llm, memory_module: MemoryModule) -> List[GuardRailTool]:
         # move_tool,
         # delete_tool,
         # append_tool,
-        search_memory_tool_factory(memory_module),
+        # search_memory_tool_factory(memory_module),
         simple_web_page_reader_tool,
         # read_remote_depth_tool,
         # apply_patch_tool,
         # read_web_unstructured_tool,
         bf4_qa_tool,
-        git_tool,
+        # git_tool,
         # directory_qa_tool,
-        python_tool
+        # python_tool
     ]
 
 

@@ -17,7 +17,7 @@ from langchain.tools import BaseTool
 from langchain.prompts.chat import MessagesPlaceholder
 from langchain.schema import AIMessage, BaseMessage, HumanMessage
 from langchain.schema import OutputParserException
-from modules.execution_tools import GuardRailTool, get_tools, tree_tool
+from modules.execution_tools import GuardRailTool, get_tools, tree
 from modules.memory import MemoryModule
 from rich import print
 
@@ -25,8 +25,8 @@ from rich import print
 rail_spec = """
 <rail version="0.1">
 
-<output strict="true">
-    <choice name="action" on-fail-choice="reask">
+<output>
+    <choice name="action" description="Action that you want to take, mandatory field" on-fail-choice="reask"  required="true">
 {tool_strings_spec}
         <case name="final">
             <object name="final" >
@@ -44,19 +44,14 @@ You only give final answer when task is completed. You should always evaluate an
 @complete_json_suffix_v2
 </instructions>
 
-
 <prompt>
-Given the following information, finish the following task.
-Ultimate objective: {{{{objective}}}}.
-
-Previously completed tasks and project context:
-{{{{context}}}}
-
-Working directory tree:
-{{{{dir_tree}}}}
+Finish the following task.
 
 Task: {{{{input}}}}
 
+Always answer with a valid JSON of a single action and nothing else.
+
+@json_suffix_prompt_v2_wo_none
 </prompt>
 
 
@@ -80,7 +75,7 @@ class ExecutionModule:
         task_name = task["task_name"]
         objective = self.memory_module.objective
         context = self.memory_module.retrieve_related_information(task_name)
-        dir_tree = tree_tool("")
+        dir_tree = tree() or "No directory tree available"
         for i in range(3):
             try:
                 return self.agent.run(
@@ -99,17 +94,17 @@ class ExecutionModule:
 FINAL_ANSWER_ACTION = "final"
 
 
-class ExecutionOutputParser(GuardrailsOutputParser, AgentOutputParser):
+class ExecutionOutputParser(GuardrailsOutputParser):
     def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
         # sourcery skip: avoid-builtin-shadow
         try:
-            result = json.loads(text)
+            result = super().parse(text)
+            # result = json.loads(text)
             action = result["action"]
             input = text
         except Exception as e:
             print(e)
-            print(f"Could not parse LLM output: {text}")
-            return AgentFinish({"output": "Incorrect output format, need to try again"}, text)
+            raise OutputParserException(f"Could not parse LLM output: {text}\nerror: {e}")
         if FINAL_ANSWER_ACTION in action:
             return AgentFinish({"output": input}, text)
         return AgentAction(action, input, text)
@@ -132,22 +127,21 @@ class ExecutionAgent(Agent):
         """Construct the scratchpad that lets the agent continue its thought process."""
         if not intermediate_steps:
             return []
-        first_action, first_observation = intermediate_steps[0]
-        last_action, last_observation = intermediate_steps[-1]
-        thoughts: List[BaseMessage] = [
-            AIMessage(content=first_action.log),
-            HumanMessage(content=f"Tool Response: {first_observation}"),
-            AIMessage(content=last_action.log),
-            HumanMessage(content=f"Tool Response: {last_observation}"),
-        ]
-        # thoughts.append(HumanMessage(content=self.output_parser.get_format_instructions()))
-        # thoughts.append(
-        #     HumanMessage(
-        #         content=(
-        #             "Execute the action that will lead you to the next step or execute final action if task is complete."
-        #         )
-        #     )
-        # )
+        last_three_steps = intermediate_steps[-3:]
+        thoughts: List[BaseMessage] = []
+        for action, observation in last_three_steps:
+            thoughts.extend(
+                (
+                    AIMessage(content=action.log),
+                    HumanMessage(content=f"Tool Response: {observation}"),
+                )
+            )
+
+        thoughts.append(
+            HumanMessage(
+                content=("Evaluate the above information and determine if task is complete. Take appropriate actions.",)
+            )
+        )
         return thoughts
 
     def get_full_inputs(self, intermediate_steps: List[Tuple[AgentAction, str]], **kwargs: Any) -> Dict[str, Any]:
@@ -164,8 +158,12 @@ class ExecutionAgent(Agent):
     def create_prompt(cls, output_parser: GuardrailsOutputParser) -> BasePromptTemplate:
         messages = [
             SystemMessagePromptTemplate.from_template(output_parser.guard.instructions.source),
+            HumanMessagePromptTemplate.from_template("Ultimate objective: {objective}"),
+            HumanMessagePromptTemplate.from_template("Previously completed tasks and project context: {context}"),
+            HumanMessagePromptTemplate.from_template("Working directory tree: {dir_tree}"),
             HumanMessagePromptTemplate.from_template(output_parser.guard.base_prompt),
             MessagesPlaceholder(variable_name="agent_scratchpad"),
+
         ]
         return ChatPromptTemplate.from_messages(messages=messages)
 
@@ -195,7 +193,7 @@ class ExecutionAgent(Agent):
         )
         operating_system = platform.platform()
         complete_rail_spec = rail_spec.format(tool_strings_spec=tool_strings_spec, operating_system=operating_system)
-        output_parser = ExecutionOutputParser.from_rail_string(complete_rail_spec, num_reasks=3)
+        output_parser = ExecutionOutputParser.from_rail_string(complete_rail_spec)
         prompt = cls.create_prompt(output_parser)
         llm_chain = LLMChain(
             llm=llm,
