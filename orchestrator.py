@@ -1,3 +1,4 @@
+from langchain import OpenAI
 from langchain.chains.base import Chain
 from langchain.llms import BaseLLM
 from modules.evaluation import EvaluationModule
@@ -98,8 +99,8 @@ class AgentOrchestrator(Chain):
 
     @classmethod
     def from_llm(cls, verbose: bool = False, **kwargs) -> "AgentOrchestrator":
-        llm = create_llm(model_name="gpt-3.5-turbo", verbose=verbose)
-        exec_llm = create_llm(verbose=verbose)
+        llm = OpenAI(temperature=0, max_tokens=500, verbose=verbose, request_timeout=180, max_retries=10)
+        exec_llm = create_llm(model_name="gpt-3.5-turbo", verbose=verbose)
 
         memory_module = MemoryModule(llm, verbose=verbose)
         perception_module = PerceptionModule(llm, memory_module=memory_module, verbose=verbose)

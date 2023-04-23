@@ -34,6 +34,9 @@ rail_spec = """
             </object>
         </case>
     </choice>
+    <string name="thoughts" description="This is what I'm thinking right now" required="true" />
+    <string name="reasoning" description="This is why I'm thinking it will help lead to the user's desired result" required="true" />
+    <string name="plan" description="This is a description of my current plan of actions" required="true" />
 </output>
 
 
@@ -60,7 +63,9 @@ Working directory tree:
 
 Task: {{{{input}}}}
 
-Always provide all the required fields for the action you choose.
+Always provide all the required fields for the action you choose. Never provide any text outside of json.
+
+@json_suffix_prompt_v2_wo_none
 </prompt>
 
 
@@ -137,14 +142,15 @@ class ExecutionAgent(Agent):
     def _construct_scratchpad(self, intermediate_steps: List[Tuple[AgentAction, str]]) -> Union[str, List[BaseMessage]]:
         """Construct the scratchpad that lets the agent continue its thought process."""
         thoughts: List[BaseMessage] = []
-        for action, observation in intermediate_steps:
+        for action, observation in intermediate_steps[-2:]:
             thoughts.append(AIMessage(content=action.log))
             human_message = HumanMessage(content=f"Tool Response: {observation}")
             thoughts.append(human_message)
+
         thoughts.append(
             HumanMessage(
                 content=(
-                    "If you need to take multiple steps to complete this task - choose the action that will lead you to the next step."
+                    "Execute the action that will lead you to the next step or execute final action if task is complete."
                 )
             )
         )

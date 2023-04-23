@@ -42,6 +42,9 @@ class GuardRailTool(BaseTool):
             action = result["action"]
             input = result[action] if action in result else result
             input.pop("action", None)
+            input.pop("thoughts", None)
+            input.pop("reasoning", None)
+            input.pop("plan", None)
             if len(input) == 1:
                 input = list(input.values())[0]
             return self.child_tool.run(input)
@@ -65,20 +68,21 @@ def get_tools(llm, memory_module: MemoryModule) -> List[GuardRailTool]:
         write_tool,
         read_tool,
         # tree_tool,
-        mkdir_tool,
+        # mkdir_tool,
         #   replace_content_tool,
         #   copy_tool,
-        move_tool,
-        delete_tool,
-        append_tool,
+        # move_tool,
+        # delete_tool,
+        # append_tool,
         search_memory_tool_factory(memory_module),
         simple_web_page_reader_tool,
         # read_remote_depth_tool,
-        apply_patch_tool,
+        # apply_patch_tool,
         # read_web_unstructured_tool,
         bf4_qa_tool,
         git_tool,
-        directory_qa_tool,
+        # directory_qa_tool,
+        python_tool
     ]
 
 
@@ -89,7 +93,7 @@ bash = BashProcess(strip_newlines=True, return_err_output=True)
 def query_website(url: str, question: str) -> str:
     loader = BeautifulSoupWebReader()
     documents = loader.load_data(urls=[url])
-    index = GPTSimpleVectorIndex(documents)
+    index = GPTSimpleVectorIndex.from_documents(documents)
     return index.query(question)
 
 
@@ -97,7 +101,7 @@ def query_local_directory(q: str) -> str:
     SimpleDirectoryReader = download_loader("SimpleDirectoryReader")
     loader = SimpleDirectoryReader(PREFIX_PATH, recursive=True, exclude_hidden=True)
     documents = loader.load_data()
-    index = GPTSimpleVectorIndex(documents)
+    index = GPTSimpleVectorIndex.from_documents(documents)
     return index.query(q)
 
 
@@ -106,49 +110,6 @@ def bash_func(command):
     if "sudo" in command:
         return "Error: Command cannot use sudo"
     return bash.run(f"cd {PREFIX_PATH} && {command}")
-
-
-def load_github_repo(url: str, branch: str, question: str) -> str:
-    # Create a unique identifier for the repository
-    repo_id = f"{url.split('/')[-1]}-{branch}"
-
-    # Check if the vector is already stored locally
-    local_vector_path = f"{PREFIX_PATH}/vectors/{repo_id}"
-
-    embeddings = OpenAIEmbeddings()
-    if os.path.exists(local_vector_path):
-        db = DeepLake(
-            dataset_path=local_vector_path,
-            read_only=True,
-            embedding_function=embeddings,
-        )
-    else:
-        # Clone the repository into the working folder
-        bash.run(f"cd {PREFIX_PATH} && git clone {url} --branch {branch} {repo_id}")
-
-        # Load the documents from the cloned repository
-        GPTRepoReader = download_loader("GPTRepoReader")
-        loader = GPTRepoReader()
-        documents = loader.load_data(repo_path=PREFIX_PATH + repo_id)
-        docs = [doc.to_langchain_format() for doc in documents]
-
-        text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
-        texts = text_splitter.split_documents(docs)
-
-        db = DeepLake.from_documents(texts, embeddings, dataset_path=local_vector_path)
-
-    retriever = db.as_retriever()
-    retriever.search_kwargs["distance_metric"] = "cos"
-    retriever.search_kwargs["fetch_k"] = 100
-    retriever.search_kwargs["maximal_marginal_relevance"] = True
-    retriever.search_kwargs["k"] = 20
-
-    model = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
-    qa = ConversationalRetrievalChain.from_llm(model, retriever=retriever)
-
-    result = qa({"question": question, "chat_history": []})
-
-    return result["answer"]
 
 
 def read_remote_depth(url: str, depth: int, query: str) -> str:
@@ -245,7 +206,6 @@ def append_file(relative_path: str, content: str) -> str:
 
 # Git tool function
 def git_func(relative_path: str, command: str) -> str:
-    bash = basheturn_err_output=True)
     return bash.run(f"cd {relative_path} && git {command}")
 
 
@@ -265,7 +225,7 @@ git_tool = GuardRailTool(
 google_search_tool = GuardRailTool(
     child_tool=Tool(
         name="google_search",
-        func=lambda query: basheturn_err_output=True).run(
+        func=lambda query: bash.run(
             f'cd {os.path.dirname(os.path.realpath(__file__))}/tools && node google.js "{query}"'
         ),
         description="This is Google. Use this tool to search the internet. Input should be a string",
