@@ -8,8 +8,10 @@ from modules.memory import MemoryModule
 from modules.perception import PerceptionModule
 from modules.reasoning import ReasoningModule
 from typing import Any, Dict, List, Optional
+from colorama import Fore, Back, Style
+import rich
 
-from llm import create_llm
+from utils.llm import create_llm
 
 
 class AgentOrchestrator(Chain):
@@ -53,52 +55,53 @@ class AgentOrchestrator(Chain):
                 self.reasoning_module.completed_task_list.append(task)
 
                 self.memory_module.store_result(execution_result, processed_task)
-                print("\033[1;34mSaved new result to memory\033[0m")
+                print(f"\n{Fore.LIGHTMAGENTA_EX}Saved new result to memory{Fore.RESET}")
 
                 # Process the execution result using PerceptionModule before storing it in the MemoryModule
                 processed_execution_result = self.perception_module.process_result(execution_result)
                 self.print_optimized_task_result(processed_execution_result)
 
-                # ## Evaluate the task result
-                # is_finished, final_answer = self.evaluation_module.evaluate_from(
-                #     observation=processed_execution_result,
-                #     completed_tasks=self.reasoning_module.completed_task_list,
-                #     pending_tasks=self.reasoning_module.task_list,
-                # )
+                ## Evaluate the task result
+                is_finished, final_answer = self.evaluation_module.evaluate_from(
+                    observation=processed_execution_result,
+                    completed_tasks=self.reasoning_module.completed_task_list,
+                    pending_tasks=self.reasoning_module.task_list,
+                )
+                self.print_evaluated_task_result(is_finished, final_answer)
 
-                # if is_finished:
-                #     break
+                if is_finished:
+                    break
 
                 new_memory = self.learning_module.learn_from(
                     observation=processed_execution_result,
                     completed_tasks=list(self.reasoning_module.completed_task_list),
                     pending_tasks=list(self.reasoning_module.task_list),
                 )
+                self.print_new_memory(new_memory)
 
                 # Step 3: Store the result in Memory
                 self.memory_module.store(new_memory)
-                print("\033[1;34mSaved new learnings to memory\033[0m")
-                print(new_memory)
+                print(f"\n{Fore.LIGHTMAGENTA_EX}Saved new learnings to memory{Fore.RESET}")
 
                 # Step 4: Create new tasks and reprioritize task list
                 self.reasoning_module.update_tasks(processed_task, processed_execution_result)
-                print("\033[1;33mUpdated tasks based on stored data\033[0m")
+                print(f"\n{Fore.LIGHTMAGENTA_EX}Updated tasks based on stored data{Fore.RESET}")
 
             num_iters += 1
             if self.max_iterations is not None and num_iters == self.max_iterations:
-                print("\033[91m\033[1m" + "\n*****TASK ENDING*****\n" + "\033[0m\033[0m")
+                print(f"\n{Fore.RED}\n*****TASK ENDING*****\n{Fore.RESET}")
                 break
 
-        # self.print_end(final_answer)
+        self.print_end(final_answer)
 
         return {}
 
     @classmethod
-    def from_llm(cls, vectorstore: Pinecone, verbose: bool = False, **kwargs) -> "AgentOrchestrator":
+    def from_llm(cls, verbose: bool = False, **kwargs) -> "AgentOrchestrator":
         llm = create_llm(model_name="gpt-3.5-turbo", verbose=verbose)
         exec_llm = create_llm(verbose=verbose)
 
-        memory_module = MemoryModule(llm, vectorstore=vectorstore, verbose=verbose)
+        memory_module = MemoryModule(llm, verbose=verbose)
         perception_module = PerceptionModule(llm, memory_module=memory_module, verbose=verbose)
         learning_module = LearningModule(llm, memory_module=memory_module, verbose=verbose)
         reasoning_module = ReasoningModule(llm, memory_module=memory_module, verbose=verbose)
@@ -116,34 +119,36 @@ class AgentOrchestrator(Chain):
         )
 
     def print_task_list(self):
-        print("\033[95m\033[1m" + "\n*****COMPLETED TASK LIST*****\n" + "\033[0m\033[0m")
-        for t in self.reasoning_module.completed_task_list:
-            print(str(t["task_id"]) + ": " + t["task_name"])
-        print("\033[95m\033[1m" + "\n*****TASK LIST*****\n" + "\033[0m\033[0m")
-        for t in self.reasoning_module.task_list:
-            print(str(t["task_id"]) + ": " + t["task_name"])
+        print(f"\n{Fore.BLUE}*****Completed*****{Fore.RESET}")
+        rich.print(list(self.reasoning_module.completed_task_list))
+        print(f"\n{Fore.GREEN}*****Pending*****{Fore.RESET}")
+        rich.print(list(self.reasoning_module.task_list))
 
     def print_next_task(self, task: Dict):
-        print("\033[92m\033[1m" + "\n*****NEXT TASK*****\n" + "\033[0m\033[0m")
-        print(str(task["task_id"]) + ": " + task["task_name"])
+        print(f"\n{Fore.LIGHTBLUE_EX}*****Next Task*****{Fore.RESET}")
+        rich.print(task)
 
     def print_optimized_next_task(self, task: Dict):
-        print("\033[92m\033[1m" + "\n*****OPTIMIZED NEXT TASK*****\n" + "\033[0m\033[0m")
-        print(str(task["task_id"]) + ": " + task["task_name"])
+        print(f"\n{Fore.LIGHTBLUE_EX}*****Optimized Next Task*****{Fore.RESET}")
+        rich.print(task)
 
     def print_task_result(self, result: str):
-        print("\033[93m\033[1m" + "\n*****TASK RESULT*****\n" + "\033[0m\033[0m")
-        print(result)
+        print(f"\n{Fore.LIGHTGREEN_EX}*****Task Result*****{Fore.RESET}")
+        rich.print(result)
 
     def print_optimized_task_result(self, result: str):
-        print("\033[93m\033[1m" + "\n*****OPTIMIZED TASK RESULT*****\n" + "\033[0m\033[0m")
-        print(result)
+        print(f"\n{Fore.LIGHTGREEN_EX}*****Optimized Task Result*****{Fore.RESET}")
+        rich.print(result)
 
     def print_evaluated_task_result(self, is_finished: bool, result: str):
-        print("\033[93m\033[1m" + "\n*****EVALUATED TASK RESULT*****\n" + "\033[0m\033[0m")
-        print(f"Is finished: {is_finished}")
-        print(result)
+        print(f"\n{Fore.LIGHTCYAN_EX}*****Evaluated Task Result*****{Fore.RESET}")
+        print(f"\n{Fore.LIGHTYELLOW_EX}Is finished: {is_finished}{Fore.RESET}")
+        rich.print(result)
+
+    def print_new_memory(self, new_memory: str):
+        print(f"\n{Fore.LIGHTMAGENTA_EX}*****New Memory*****{Fore.RESET}")
+        rich.print(new_memory)
 
     def print_end(self, final_result):
-        print("\033[1;32m*****Task End*****:\033[0m")
-        print(final_result)
+        print(f"\n{Fore.RED}*****End Result*****{Fore.RESET}")
+        rich.print(final_result)

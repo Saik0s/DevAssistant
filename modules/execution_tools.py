@@ -4,6 +4,7 @@ import os
 from typing import List
 from pathlib import Path
 from langchain.utilities import BashProcess
+from langchain.tools.python.tool import PythonREPLTool
 from modules.memory import MemoryModule
 from llama_index.optimization.optimizer import SentenceEmbeddingOptimizer
 from llama_index import GPTSimpleVectorIndex
@@ -32,7 +33,12 @@ def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
 
         return Tool(name=f"{tool.name}", func=wrapped_tool, description=f"{tool.description}")
 
-    tools = [wrap_tool_with_try_catch(tool) for tool in load_tools(["python_repl"], llm=llm)]
+    python_tool = PythonREPLTool()
+    python_tool.name = "python_repl"
+
+    tools = [wrap_tool_with_try_catch(python_tool)]
+
+    mkdir_tool()("")
 
     # tools = []
     return tools + [
@@ -345,7 +351,7 @@ def tree_tool() -> Tool:
     def tree(input_str: str) -> str:
         try:
             bash = BashProcess()
-            return bash.run(f"tree {PREFIX_PATH}")
+            return bash.run(f"cd {PREFIX_PATH} && tree --noreport")
         except Exception as e:
             return str(e)
 

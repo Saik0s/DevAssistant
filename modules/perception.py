@@ -29,10 +29,10 @@ class TaskEnhancementChain(LLMChain):
     def from_llm(cls, llm: BaseLLM, verbose: bool = True) -> LLMChain:
         template = (
             "As a Task Improver Assistant, ensure tasks are actionable and achievable for an autonomous agent with limited resources.\n"
-            "Objective: {objective}\n"
-            "Context: {context}\n"
+            "Ultimate objective: {objective}\n"
+            "Context: {context}\n\n"
             "Task: {task}\n\n"
-            "Write a single sentence describing the task and the expected end result.\n"
+            "Now write a single sentence describing the task and the expected end result.\n"
         )
         prompt = PromptTemplate(
             template=template,
