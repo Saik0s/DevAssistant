@@ -1,7 +1,7 @@
 import shutil
 import re
 import os
-from typing import Dict, List
+from typing import Any, Dict, List
 from pathlib import Path
 from langchain.utilities import BashProcess
 from langchain.tools.python.tool import PythonREPLTool
@@ -23,13 +23,12 @@ current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
 PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output_{current_datetime}/"
 
 
-class GuardRailTool:
-    def __init__(self, child_tool: BaseTool, args: Dict[str, str]):
-        super().__init__()
-        self.name = child_tool.name
-        self.description = child_tool.description
-        self.child_tool = child_tool
-        self.args = args
+class GuardRailTool(BaseTool):
+    child_tool: BaseTool
+    input_args: Dict[str, str]
+
+    def __init__(self, child_tool: BaseTool, input_args: Dict[str, str]):
+        super().__init__(name = child_tool.name, description = child_tool.description, child_tool=child_tool, input_args=input_args)
 
     def _run(self, input_str: str) -> str:
         try:
@@ -37,23 +36,15 @@ class GuardRailTool:
         except Exception as e:
             return f"Error occurred while executing tool {self.name}: {str(e)}"
 
-
-def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
-    def wrap_tool_with_try_catch(tool: BaseTool) -> Tool:
-        def wrapped_tool(input_str: str) -> str:
-            try:
-                return tool._run(input_str)
-            except Exception as e:
-                return f"Error occurred while executing tool {tool.name}: {str(e)}"
-
-        return Tool(name=f"{tool.name}", func=wrapped_tool, description=f"{tool.description}")
+    async def _arun(self, *args: Any, **kwargs: Any) -> str:
+        raise NotImplementedError("Tool does not support async")
 
 
-    tools = [wrap_tool_with_try_catch(python_tool)]
+def get_tools(llm, memory_module: MemoryModule) -> List[GuardRailTool]:
+    mkdir_tool("")
 
-    mkdir_tool()("")
+    tools = []
 
-    # tools = []
     return tools + [
         bash_tool,
         google_search_tool,
@@ -66,7 +57,7 @@ def get_tools(llm, memory_module: MemoryModule) -> List[Tool]:
         # move_tool(),
         # delete_tool(),
         # append_tool(),
-        # search_memory_tool(memory_module),
+        search_memory_tool_factory(memory_module),
         # read_web_readability_tool(),
         # github_tool(),
         # read_remote_depth_tool(),
@@ -264,7 +255,7 @@ google_search_tool = GuardRailTool(
         ),
         description="This is Google. Use this tool to search the internet. Input should be a string",
     ),
-    args={"action_input": "The search query to be passed to Google."},
+    input_args={"action_input": "The search query to be passed to Google."},
 )
 
 bash_tool = GuardRailTool(
@@ -273,10 +264,16 @@ bash_tool = GuardRailTool(
         func=bash_func,
         description="Execute a bash command within the current work directory. Input is the command.",
     ),
-    args={"action_input": "The bash command to execute."},
+    input_args={"action_input": "The bash command to execute."},
 )
 
-python_tool = GuardRailTool(child_tool=PythonREPLTool(), args={})
+python_tool = GuardRailTool(
+    child_tool=PythonREPLTool(),
+    input_args={
+        "action_input": "The Python code to execute in the REPL environment."
+    }
+)
+
 python_tool.name = "python_repl"
 
 
@@ -288,7 +285,7 @@ bf4_qa_tool = GuardRailTool(
             "Useful when you want answer questions about the text on websites. " "Input format: url\\nquestion."
         ),
     ),
-    args={
+    input_args={
         "url": "The URL of the website to query.",
         "question": "The question to ask about the content of the website.",
     },
@@ -300,7 +297,7 @@ directory_qa_tool = GuardRailTool(
         func=query_local_directory,
         description=("Useful when you want answer questions about the files in your local directory."),
     ),
-    args={"action_input": "The question to ask about the content of the local directory."},
+    input_args={"action_input": "The question to ask about the content of the local directory."},
 )
 
 github_tool = GuardRailTool(
@@ -309,7 +306,7 @@ github_tool = GuardRailTool(
         func=load_github_repo,
         description="Load a GitHub repository by URL and ask a provided question. Input format: url\\nbranch\\nquestion.",
     ),
-    args={
+    input_args={
         "url": "The URL of the GitHub repository.",
         "branch": "The branch of the repository to load.",
         "question": "The question to ask about the content of the repository.",
@@ -322,7 +319,7 @@ read_remote_depth_tool = GuardRailTool(
         func=read_remote_depth,
         description="Read data from a remote url with a specified depth and answers provided question. Input is the url, depth and question separated by a new line character. Depth is an integer. Example: url\n2\nQuestion",
     ),
-    args={
+    input_args={
         "url": "The URL of the website to load.",
         "depth": "The depth to load content from the website.",
         "question": "The question to ask about the content of the website.",
@@ -335,7 +332,7 @@ read_web_unstructured_tool = GuardRailTool(
         func=read_web_unstructured,
         description="Read unstructured data from a webpage. Input is the url.",
     ),
-    args={"action_input": "The URL of the webpage to load unstructured data from."},
+    input_args={"action_input": "The URL of the webpage to load unstructured data from."},
 )
 
 read_web_readability_tool = GuardRailTool(
@@ -344,11 +341,11 @@ read_web_readability_tool = GuardRailTool(
         func=read_web_readability,
         description="Useful when you need to get text content from the webpage. Input is the url.",
     ),
-    args={"action_input": "The URL of the webpage to load text content from."},
+    input_args={"action_input": "The URL of the webpage to load text content from."},
 )
 
 
-def search_memory_factory(memory_module: MemoryModule):
+def search_memory_tool_factory(memory_module: MemoryModule):
     def search_memory(input_str: str) -> str:
         return memory_module.retrieve_related_information(input_str, top_k=20)
 
@@ -358,7 +355,7 @@ def search_memory_factory(memory_module: MemoryModule):
             func=search_memory,
             description="Search through your memory of completed tasks and research results. Input is a search query.",
         ),
-        args={"action_input": "The search query to search through memory."},
+        input_args={"action_input": "The search query to search through memory."},
     )
 
 
@@ -368,7 +365,7 @@ write_tool = GuardRailTool(
         func=write_file,
         description="Write content to a file. Input first line is the relative path, the rest is the content.",
     ),
-    args={
+    input_args={
         "relative_path": "The relative path of the file to write content to.",
         "content": "The content to write to the file.",
     },
@@ -380,7 +377,7 @@ apply_patch_tool = GuardRailTool(
         func=apply_patch,
         description="Apply a patch to the current folder. Input is the patch file content.",
     ),
-    args={"action_input": "The content of the patch file to apply."},
+    input_args={"action_input": "The content of the patch file to apply."},
 )
 
 read_tool = GuardRailTool(
@@ -389,7 +386,7 @@ read_tool = GuardRailTool(
         func=read_file,
         description="Read content from a file. Input is the relative path.",
     ),
-    args={"action_input": "The relative path of the file to read content from."},
+    input_args={"action_input": "The relative path of the file to read content from."},
 )
 
 tree_tool = GuardRailTool(
@@ -398,7 +395,7 @@ tree_tool = GuardRailTool(
         func=tree,
         description="Display the directory tree.",
     ),
-    args={"action_input": "No input required."},
+    input_args={"action_input": "No input required."},
 )
 
 mkdir_tool = GuardRailTool(
@@ -407,7 +404,7 @@ mkdir_tool = GuardRailTool(
         func=make_directory,
         description="Create a new directory. Input is the relative path.",
     ),
-    args={"action_input": "The relative path of the directory to create."},
+    input_args={"action_input": "The relative path of the directory to create."},
 )
 
 replace_content_tool = GuardRailTool(
@@ -416,7 +413,7 @@ replace_content_tool = GuardRailTool(
         func=replace_content,
         description="Replace content in a file using regex. Input is the relative path, pattern, and replacement separated by new lines.",
     ),
-    args={
+    input_args={
         "relative_path": "The relative path of the file to replace content in.",
         "pattern": "The regex pattern to match content to replace.",
         "replacement": "The replacement content for the matched pattern.",
@@ -429,7 +426,7 @@ copy_tool = GuardRailTool(
         func=copy_file,
         description="Copy a file. Input is the source and destination relative paths separated by a new line.",
     ),
-    args={
+    input_args={
         "source_path": "The source relative path of the file to copy.",
         "destination_path": "The destination relative path to copy the file to.",
     },
@@ -441,7 +438,7 @@ move_tool = GuardRailTool(
         func=move_file,
         description="Move a file. Input is the source and destination relative paths separated by a new line.",
     ),
-    args={
+    input_args={
         "source_path": "The source relative path of the file to move.",
         "destination_path": "The destination relative path to move the file to.",
     },
@@ -453,7 +450,7 @@ delete_tool = GuardRailTool(
         func=delete_file,
         description="Delete a file or directory. Input is the relative path.",
     ),
-    args={"action_input": "The relative path of the file or directory to delete."},
+    input_args={"action_input": "The relative path of the file or directory to delete."},
 )
 
 append_tool = GuardRailTool(
@@ -462,7 +459,7 @@ append_tool = GuardRailTool(
         func=append_file,
         description="Append content to a file. Input first line is the relative path, the rest is the content.",
     ),
-    args={
+    input_args={
         "relative_path": "The relative path of the file to append content to.",
         "content": "The content to append to the file.",
     },

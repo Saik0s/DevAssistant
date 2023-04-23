@@ -83,7 +83,7 @@ class ExecutionModule:
         task_name = task["task_name"]
         objective = self.memory_module.objective
         context = self.memory_module.retrieve_related_information(task_name)
-        dir_tree = tree_tool().func("")
+        dir_tree = tree_tool("")
         for i in range(3):
             try:
                 return self.agent.run(
@@ -195,7 +195,7 @@ class ExecutionAgent(Agent):
                 + "".join(
                     [
                         f'<string name="{arg_key}" description="{arg_value}" required="true"/>'
-                        for arg_key, arg_value in tool.args.items()
+                        for arg_key, arg_value in tool.input_args.items()
                     ]
                 )
                 + "</object></case>"
