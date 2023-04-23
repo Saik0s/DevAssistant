@@ -12,7 +12,7 @@ from utils.helpers import summarize_text
 
 
 class MemoryModule:
-  vectorstore: VectorStoreRetriever
+    vectorstore: VectorStoreRetriever
     def __init__(self, llm: BaseLLM, verbose: bool = True):
         self.llm = llm
         self.verbose = verbose

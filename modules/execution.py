@@ -16,7 +16,7 @@ from langchain.schema import AgentAction, AgentFinish, BaseLanguageModel, Output
 from langchain.tools import BaseTool
 from langchain.prompts.chat import MessagesPlaceholder
 from langchain.schema import AIMessage, BaseMessage, HumanMessage
-from modules.execution_tools import get_tools, tree_tool
+from modules.execution_tools import GuardRailTool, get_tools, tree_tool
 from modules.memory import MemoryModule
 from rich import print
 
@@ -183,7 +183,7 @@ class ExecutionAgent(Agent):
     def from_llm_and_tools(
         cls,
         llm: BaseLanguageModel,
-        tools: Sequence[BaseTool],
+        tools: Sequence[GuardRailTool],
         callback_manager: Optional[BaseCallbackManager] = None,
         output_parser: Optional[ExecutionOutputParser] = None,
         **kwargs: Any,
@@ -191,7 +191,14 @@ class ExecutionAgent(Agent):
         cls._validate_tools(tools)
         tool_strings_spec = "\n".join(
             [
-                f'<case name="{tool.name}" description="{tool.description}"><object name="{tool.name}"><string name="action_input" required="true"/></object></case>'
+                f'<case name="{tool.name}" description="{tool.description}"><object name="{tool.name}">'
+                + "".join(
+                    [
+                        f'<string name="{arg_key}" description="{arg_value}" required="true"/>'
+                        for arg_key, arg_value in tool.args.items()
+                    ]
+                )
+                + "</object></case>"
                 for tool in tools
             ]
         )

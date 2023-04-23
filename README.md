@@ -2,24 +2,29 @@
 <img src=".github/logo.png" alt="DevAssistant Logo"/>
 </div>
 
-**Dev Assistant** is a task driven autonomous agent developed using Python, OpenAI API, Pinecone, and Langchain, which is designed to assist programmers in accomplishing various tasks.
+**Dev Assistant** is a Python project that demonstrates an intelligent agent capable of performing tasks, learning from its environment, and evaluating its progress towards a given objective. The agent is composed of several modules, each responsible for a specific aspect of the agent's behavior.
 
 The agent operates on the basis of input objectives provided by the user, and it employs a range of tools to achieve the desired outcome.
 
 The tool is particularly useful for tasks that result in the creation of multiple files upon completion, and it is designed to streamline the workflow of developers.
 
-## Purpose
+## Key Components
 
-The main goal of this project is to complete tasks using the assistant's knowledge and a set of available tools. The assistant is designed to be self-critical and make extensive use of the file system for project state management. It ensures that each task is fully completed before moving on to the next one.
+- ReasoningModule: Generates and prioritizes tasks based on the agent's objective and current state.
+- PerceptionModule: Processes tasks and results to optimize them for the agent's understanding and execution.
+- ExecutionModule: Executes tasks using various tools and returns the results.
+- LearningModule: Learns from observations and adjusts the agent's behavior to improve efficiency.
+- MemoryModule: Stores and retrieves relevant information based on the agent's tasks and objectives.
+- EvaluationModule: Evaluates the agent's progress towards its objective and determines if the objective has been achieved.
 
-## Setup
+## How to Use
 
 To set up the project, follow these steps:
 
 1. Clone the repository to your local machine.
-2. Install the required dependencies by running `pip install -r requirements.txt`.
-3. Set up the necessary environment variables in a `.envrc` file. You will need to provide your OpenAI API key, Pinecone API key, Pinecone environment, and Pinecone index name.
-4. Run the project using the command `python -u -m main`.
+2. Install the required dependencies by running `make install`.
+3. Set up the necessary environment variables in a `.envrc` file. You will need to provide your OpenAI API key.
+4. Run the project using the command `make docker` or `make`.
 
 ## Running the Project
 
@@ -45,6 +50,20 @@ The assistant makes use of several tools to complete tasks. Some of these tools 
 - GitHub integration
 - Web scraping
 
+## Structure
+
+The project consists of several Python files, each containing a specific module or class:
+
+- AgentOrchestrator.py: Contains the main AgentOrchestrator class, which coordinates the different modules to achieve the agent's objective.
+- main.py: The main script that runs the agent and handles command-line arguments.
+
+## Future Improvements
+
+- Improve the agent's ability to handle more complex objectives and tasks.
+- Add more tools and capabilities to the ExecutionModule.
+- Enhance the agent's learning and adaptation capabilities.
+- Implement a visualizer to display the agent's progress and decision-making process.
+
 ## Contributing
 
 If you'd like to contribute to the project, feel free to submit a pull request or open an issue on the repository.
@@ -55,21 +74,6 @@ If you'd like to contribute to the project, feel free to submit a pull request o
 - [babyAGI](https://github.com/yoheinakajima/babyagi)
 - [Llama Index](https://github.com/jerryjliu/llama_index)
 - [langchain](https://github.com/hwchase17/langchain)
-
-## Future Improvements
-
-*   Integrating a security/safety agent to ensure ethical considerations are met and prevent potential misuse.
-*   Implementing task sequencing and parallel tasks for improved efficiency.
-*   Adding interim milestones to track progress more effectively.
-*   Providing real-time priority updates for better resource allocation.
-
-## Risks & Safety Considerations
-
-- Data privacy and security: Ensuring user data is protected and not misused.
-- Ethical concerns: Ensuring the AI system does not engage in unethical activities.
-- Dependence on model accuracy: Ensuring the AI system's performance is reliable and accurate.
-- System overload: Preventing the AI system from becoming overwhelmed by too many tasks. ️
-- Misinterpretation of task prioritization: Ensuring the AI system correctly understands and prioritizes tasks.
 
 ## License
 

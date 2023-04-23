@@ -16,3 +16,4 @@ searxng-docker.service
 caddy
 srv
 .pytest_cache
+tests.py
