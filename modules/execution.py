@@ -3,6 +3,7 @@ import json
 import traceback
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import platform
+from langchain import OpenAI
 from pydantic import Field
 from langchain.agents import Agent, AgentExecutor
 from langchain.agents.agent import AgentOutputParser
@@ -32,7 +33,7 @@ rail_spec = """
 {tool_strings_spec}
         <case name="final">
             <object name="final" >
-            <string name="action_input" description="the final answer to the original input question"/>
+            <string name="action_input" description="Detailed final answer to the original input question together with summary of used actions and results of used actions"/>
             </object>
         </case>
     </choice>
@@ -101,7 +102,6 @@ class ExecutionModule:
 
 FINAL_ANSWER_ACTION = "final"
 
-
 class ExecutionOutputParser(GuardrailsOutputParser):
     def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
         # sourcery skip: avoid-builtin-shadow
@@ -110,11 +110,28 @@ class ExecutionOutputParser(GuardrailsOutputParser):
             action = result["action"]
             input = text
         except Exception as e:
-            raise OutputParserException(f"Could not parse LLM output: {text}\nerror: {e}") from e
+            # Retry once by directly calling LLM and asking to extract action and action input as a json
+            try:
+                print(f"---\nCould not parse LLM output: {text}\nerror: {e}\nRetrying...\n---")
+                llm = OpenAI(temperature=0)
+                text = llm(f"{self.guard.instructions.source}\n\nExtract and return action and other fields in json format from this: {text}")
+                result = json.loads(text)
+                action = result["action"]
+                input = text
+            except Exception as e2:
+                raise OutputParserException(f"---\nCould not parse LLM output: {text}\nerror: {e2}\n---") from e2
         if FINAL_ANSWER_ACTION in action:
-            return AgentFinish({"output": input}, text)
-        return AgentAction(action, input, text)
+            if "action_input" in result:
+                action_input = result["action_input"]
+            elif action in input and isinstance(input[action], dict) and "action_input" in input[action]:
+                action_input = input[action]["action_input"]
+            elif action in input:
+                action_input = str(input[action])
+            else:
+                action_input = str(input)
+            return AgentFinish({"output": action_input}, text)
 
+        return AgentAction(action, input, text)
 
 class ExecutionAgent(ChatAgent):
     output_parser: ExecutionOutputParser = Field(default_factory=ExecutionOutputParser)
@@ -122,12 +139,12 @@ class ExecutionAgent(ChatAgent):
     @property
     def observation_prefix(self) -> str:
         """Prefix to append the observation with."""
-        return "Action Result: "
+        return "Result of Action JSON: "
 
     @property
     def llm_prefix(self) -> str:
         """Prefix to append the llm call with."""
-        return "Action:"
+        return "Action JSON:"
 
     def _construct_scratchpad(self, intermediate_steps: List[Tuple[AgentAction, str]]) -> str:
         """Construct the scratchpad that lets the agent continue its thought process."""
@@ -195,7 +212,7 @@ class ExecutionAgent(ChatAgent):
 
     @property
     def _stop(self) -> List[str]:
-        return ["Observation:"]
+        return ["Result of Action JSON:"]
 
     @property
     def _agent_type(self) -> str:

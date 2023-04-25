@@ -40,15 +40,17 @@ class AgentOrchestrator(Chain):
         num_iters = 0
         while True:
             if self.reasoning_module.task_list:
-                self.print_task_list()
-
                 # Step 1: Pull the first task
                 task = self.reasoning_module.task_list.popleft()
                 self.print_next_task(task)
 
-                # Process the current task using PerceptionModule
-                processed_task = self.perception_module.process_task(task)
-                self.print_optimized_next_task(processed_task)
+                self.print_task_list()
+
+                # TODO: Enable it back when flow is complerely tested
+                # # Process the current task using PerceptionModule
+                # processed_task = self.perception_module.process_task(task)
+                # self.print_optimized_next_task(processed_task)
+                processed_task = task
 
                 # Step 2: Execute the task
                 execution_result = self.execution_module.execute(processed_task)
@@ -58,22 +60,13 @@ class AgentOrchestrator(Chain):
                 self.memory_module.store_result(execution_result, processed_task)
                 print(f"\n{Fore.LIGHTMAGENTA_EX}Saved new result to memory{Fore.RESET}")
 
+                # TODO: Enable it back when flow is complerely tested
                 # # Process the execution result using PerceptionModule before storing it in the MemoryModule
                 # processed_execution_result = self.perception_module.process_result(execution_result)
                 # self.print_optimized_task_result(processed_execution_result)
                 processed_execution_result = execution_result
 
-                ## Evaluate the task result
-                is_finished, final_answer = self.evaluation_module.evaluate_from(
-                    observation=processed_execution_result,
-                    completed_tasks=self.reasoning_module.completed_task_list,
-                    pending_tasks=self.reasoning_module.task_list,
-                )
-                self.print_evaluated_task_result(is_finished, final_answer)
-
-                if is_finished:
-                    break
-
+                # TODO: Enable it back when flow is complerely tested
                 # new_memory = self.learning_module.learn_from(
                 #     observation=processed_execution_result,
                 #     completed_tasks=list(self.reasoning_module.completed_task_list),
@@ -88,6 +81,16 @@ class AgentOrchestrator(Chain):
                 # Step 4: Create new tasks and reprioritize task list
                 self.reasoning_module.update_tasks(processed_task, processed_execution_result)
                 print(f"\n{Fore.LIGHTMAGENTA_EX}Updated tasks based on stored data{Fore.RESET}")
+
+                # Evaluate the task result
+                is_finished, final_answer = self.evaluation_module.evaluate_from(
+                    observation=processed_execution_result,
+                )
+
+                self.print_evaluated_task_result(is_finished, final_answer)
+
+                if is_finished:
+                    break
 
             num_iters += 1
             if self.max_iterations is not None and num_iters == self.max_iterations:

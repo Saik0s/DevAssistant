@@ -19,40 +19,36 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.agents import Tool
 from langchain.agents.tools import BaseTool
 from datetime import datetime
-from rich import print
+import rich
 import traceback
-
+from colorama import Fore, Back, Style
 
 
 current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
 PREFIX_PATH = f"{str(Path(__file__).resolve().parent.parent)}/runs/test_output_{current_datetime}/"
+
 
 class GuardRailTool(BaseTool):
     child_tool: BaseTool
     input_args: Dict[str, str]
 
     def __init__(self, child_tool: BaseTool, input_args: Dict[str, str]):
-        super().__init__(
-            name=child_tool.name, description=child_tool.description, child_tool=child_tool, input_args=input_args
-        )
+        super().__init__(name=child_tool.name, description=child_tool.description, child_tool=child_tool, input_args=input_args)
 
     def _run(self, input_str: str) -> str:  # sourcery skip: avoid-builtin-shadow
         try:
             result = json.loads(input_str)
             action = result["action"]
             input = result[action] if action in result else result
-            input.pop("action", None)
-            input.pop("thoughts", None)
-            input.pop("reasoning", None)
-            input.pop("plan", None)
-            if len(input) == 1:
-                final_input = list(input.values())[0]
+            if len(self.input_args) == 1:
+                final_input = str(input[list(self.input_args.keys())[0]])
             else:
                 final_input = {key: str(input[key]) for key in self.input_args}
+            print(f"\n{Fore.LIGHTBLUE_EX} Using action {action} with input:\n{final_input}{Fore.RESET}\n")
             return str(self.child_tool.run(final_input))
 
         except Exception as e:
-            print(traceback.format_exc())
+            rich.print(traceback.format_exc())
             return f"Error occurred while executing tool {self.name}: {str(e)}\ninput_str: {input_str}"
 
     async def _arun(self, input_str: str) -> str:
@@ -77,15 +73,20 @@ def get_tools(llm, memory_module: MemoryModule) -> List[GuardRailTool]:
         # delete_tool,
         # append_tool,
         # search_memory_tool_factory(memory_module),
-        simple_web_page_reader_tool,
+        # simple_web_page_reader_tool,
         # read_remote_depth_tool,
         # apply_patch_tool,
         # read_web_unstructured_tool,
-        bf4_qa_tool,
+        query_website_tool,
         # git_tool,
         # directory_qa_tool,
         # python_tool
     ]
+
+
+def absolute(path):
+    cwd = PREFIX_PATH
+    return path if path.startswith(cwd) else os.path.join(cwd, path.lstrip("/"))
 
 
 BeautifulSoupWebReader = download_loader("BeautifulSoupWebReader")
@@ -96,7 +97,7 @@ def query_website(url: str, question: str) -> str:
     loader = BeautifulSoupWebReader()
     documents = loader.load_data(urls=[url])
     index = GPTSimpleVectorIndex.from_documents(documents)
-    return index.query(question)
+    return index.query(question).response
 
 
 def query_local_directory(q: str) -> str:
@@ -123,7 +124,7 @@ def read_remote_depth(url: str, depth: int, query: str) -> str:
 
 
 def write_file(relative_path: str, content: str) -> str:
-    path = relative_path if relative_path.startswith("/") else PREFIX_PATH + relative_path
+    path = absolute(relative_path)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as file:
         file.write(content)
@@ -134,16 +135,14 @@ def apply_patch(patch_content: str) -> str:
     patch_file = f"{PREFIX_PATH}temp_patch_file.patch"
     with open(patch_file, "w") as file:
         file.write(patch_content)
-
     bash = bash
     result = bash.run(f"cd {PREFIX_PATH} && patch -p1 -u -f -i temp_patch_file.patch")
-
     os.remove(patch_file)
     return f"Patch applied:\n{result}"
 
 
 def read_file(relative_path: str) -> str:
-    path = relative_path if relative_path.startswith("/") else PREFIX_PATH + relative_path
+    path = absolute(relative_path)
     with open(path, "r") as file:
         content = file.read()
     return content
@@ -154,41 +153,37 @@ def tree() -> str:
 
 
 def make_directory(relative_path: str) -> str:
-    path = PREFIX_PATH + relative_path.replace("..", "")
+    path = absolute(relative_path)
     os.makedirs(path, exist_ok=True)
     return f"Created directory at {path}"
 
 
 def replace_content(relative_path: str, pattern: str, replacement: str) -> str:
-    path = PREFIX_PATH + relative_path.replace("..", "")
-
+    path = absolute(relative_path)
     with open(path, "r") as file:
         content = file.read()
-
     content = re.sub(pattern, replacement, content)
-
     with open(path, "w") as file:
         file.write(content)
-
     return f"Replaced content in file at {relative_path}"
 
 
 def copy_file(source_path: str, destination_path: str) -> str:
-    src_path = source_path if source_path.startswith("/") else PREFIX_PATH + source_path
-    dest_path = destination_path if destination_path.startswith("/") else PREFIX_PATH + destination_path
+    src_path = absolute(source_path)
+    dest_path = absolute(destination_path)
     shutil.copy(src_path, dest_path)
     return f"Copied file from {source_path} to {destination_path}"
 
 
 def move_file(source_path: str, destination_path: str) -> str:
-    src_path = source_path if source_path.startswith("/") else PREFIX_PATH + source_path
-    dest_path = destination_path if destination_path.startswith("/") else PREFIX_PATH + destination_path
+    src_path = absolute(source_path)
+    dest_path = absolute(destination_path)
     shutil.move(src_path, dest_path)
     return f"Moved file from {source_path} to {destination_path}"
 
 
 def delete_file(relative_path: str) -> str:
-    path = relative_path if relative_path.startswith("/") else PREFIX_PATH + relative_path
+    path = absolute(relative_path)
     if os.path.isfile(path):
         os.remove(path)
     elif os.path.isdir(path):
@@ -199,7 +194,7 @@ def delete_file(relative_path: str) -> str:
 
 
 def append_file(relative_path: str, content: str) -> str:
-    path = relative_path if relative_path.startswith("/") else PREFIX_PATH + relative_path
+    path = absolute(relative_path)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a") as file:
         file.write(content)
@@ -227,9 +222,7 @@ git_tool = GuardRailTool(
 google_search_tool = GuardRailTool(
     child_tool=Tool(
         name="google_search",
-        func=lambda query: bash.run(
-            f'cd {os.path.dirname(os.path.realpath(__file__))}/tools && node google.js "{query}"'
-        ),
+        func=lambda query: bash.run(f'cd {os.path.dirname(os.path.realpath(__file__))}/tools && node google.js "{query}"'),
         description="This is Google. Use this tool to search the internet. Input should be a string",
     ),
     input_args={"action_input": "The search query to be passed to Google."},
@@ -244,19 +237,15 @@ bash_tool = GuardRailTool(
     input_args={"action_input": "The bash command to execute."},
 )
 
-python_tool = GuardRailTool(
-    child_tool=PythonREPLTool(), input_args={"action_input": "The Python code to execute in the REPL environment."}
-)
+python_tool = GuardRailTool(child_tool=PythonREPLTool(), input_args={"action_input": "The Python code to execute in the REPL environment."})
 python_tool.name = "python_repl"
 
 
-bf4_qa_tool = GuardRailTool(
+query_website_tool = GuardRailTool(
     child_tool=Tool(
         name="qa_about_website",
         func=query_website,
-        description=(
-            "Useful when you want answer questions about the text on websites. " "Input format: url\\nquestion."
-        ),
+        description=("Useful when you want to get an answer for a question about the content on a websites."),
     ),
     input_args={
         "url": "The URL of the website to query.",

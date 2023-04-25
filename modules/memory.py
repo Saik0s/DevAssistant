@@ -19,7 +19,7 @@ class MemoryModule:
         embedding_size = 1536
         index = faiss.IndexFlatL2(embedding_size)
         self.vectorstore = FAISS(embeddings_model.embed_query, index, InMemoryDocstore({}), {}).as_retriever(
-            search_kwargs={"k": 3}
+            search_kwargs={"k": 5}
         )
 
     def retrieve_related_information(self, query):
