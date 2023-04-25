@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import traceback
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import platform
 from pydantic import Field
@@ -17,6 +18,7 @@ from langchain.tools import BaseTool
 from langchain.prompts.chat import MessagesPlaceholder
 from langchain.schema import AIMessage, BaseMessage, HumanMessage
 from langchain.schema import OutputParserException
+from langchain.agents.chat.base import ChatAgent
 from modules.execution_tools import GuardRailTool, get_tools, tree
 from modules.memory import MemoryModule
 from rich import print
@@ -30,7 +32,7 @@ rail_spec = """
 {tool_strings_spec}
         <case name="final">
             <object name="final" >
-            <string name="action_input" description="the final answer to the original input question" required="true" />
+            <string name="action_input" description="the final answer to the original input question"/>
             </object>
         </case>
     </choice>
@@ -38,25 +40,30 @@ rail_spec = """
 
 
 <instructions>
-You are a Task Driven Autonomous Agent running on {operating_system} only capable of communicating with valid JSON, and no other text.
-You only give final answer when task is completed. You should always evaluate and see if additional actions are required.
+You are a helpful Task Driven Autonomous Agent running on {operating_system} only capable of communicating with valid JSON, and no other text.
+You should always respond with one of the provided actions and corresponding to this action input. If you don't know what to do, you should decide by yourself.
+You can take as many actions as you want, but you should always return a valid JSON that follows the schema and only one action at a time.
 
 @complete_json_suffix_v2
 </instructions>
 
 <prompt>
+Ultimate objective: {{{{objective}}}}
+Previously completed tasks and project context: {{{{context}}}}
+Working directory tree: {{{{dir_tree}}}}
+
 Finish the following task.
 
 Task: {{{{input}}}}
 
-Always answer with a valid JSON of a single action and nothing else.
+Choose one of the available actions and return a JSON that follows the correct schema.
 
-@json_suffix_prompt_v2_wo_none
+{{{{agent_scratchpad}}}}
 </prompt>
-
 
 </rail>
 """
+# Objective, Context and Directory tree are sent in separate messages, so they are not included in this prompt
 
 
 class ExecutionModule:
@@ -86,8 +93,9 @@ class ExecutionModule:
                         "dir_tree": dir_tree,
                     }
                 )
-            except ValueError:
-                print(f"Value error running executor agent. Will retry {2-i} times")
+            except Exception as e:
+                print(traceback.format_exc())
+                print(f"Exception running executor agent. Will retry {2-i} times")
         return "Failed to execute task."
 
 
@@ -102,46 +110,28 @@ class ExecutionOutputParser(GuardrailsOutputParser):
             action = result["action"]
             input = text
         except Exception as e:
-            print(e)
-            raise OutputParserException(f"Could not parse LLM output: {text}\nerror: {e}")
+            raise OutputParserException(f"Could not parse LLM output: {text}\nerror: {e}") from e
         if FINAL_ANSWER_ACTION in action:
             return AgentFinish({"output": input}, text)
         return AgentAction(action, input, text)
 
 
-class ExecutionAgent(Agent):
+class ExecutionAgent(ChatAgent):
     output_parser: ExecutionOutputParser = Field(default_factory=ExecutionOutputParser)
 
     @property
     def observation_prefix(self) -> str:
         """Prefix to append the observation with."""
-        return "Observation: "
+        return "Action Result: "
 
     @property
     def llm_prefix(self) -> str:
         """Prefix to append the llm call with."""
-        return "Thought:"
+        return "Action:"
 
-    def _construct_scratchpad(self, intermediate_steps: List[Tuple[AgentAction, str]]) -> Union[str, List[BaseMessage]]:
+    def _construct_scratchpad(self, intermediate_steps: List[Tuple[AgentAction, str]]) -> str:
         """Construct the scratchpad that lets the agent continue its thought process."""
-        if not intermediate_steps:
-            return []
-        last_three_steps = intermediate_steps[-3:]
-        thoughts: List[BaseMessage] = []
-        for action, observation in last_three_steps:
-            thoughts.extend(
-                (
-                    AIMessage(content=action.log),
-                    HumanMessage(content=f"Tool Response: {observation}"),
-                )
-            )
-
-        thoughts.append(
-            HumanMessage(
-                content=("Evaluate the above information and determine if task is complete. Take appropriate actions.",)
-            )
-        )
-        return thoughts
+        return super()._construct_scratchpad(intermediate_steps[-3:])
 
     def get_full_inputs(self, intermediate_steps: List[Tuple[AgentAction, str]], **kwargs: Any) -> Dict[str, Any]:
         """Create the full inputs for the LLMChain from intermediate steps."""
@@ -157,12 +147,7 @@ class ExecutionAgent(Agent):
     def create_prompt(cls, output_parser: GuardrailsOutputParser) -> BasePromptTemplate:
         messages = [
             SystemMessagePromptTemplate.from_template(output_parser.guard.instructions.source),
-            HumanMessagePromptTemplate.from_template("Ultimate objective: {objective}"),
-            HumanMessagePromptTemplate.from_template("Previously completed tasks and project context: {context}"),
-            HumanMessagePromptTemplate.from_template("Working directory tree: {dir_tree}"),
             HumanMessagePromptTemplate.from_template(output_parser.guard.base_prompt),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
-
         ]
         return ChatPromptTemplate.from_messages(messages=messages)
 
@@ -182,7 +167,7 @@ class ExecutionAgent(Agent):
                 f'<case name="{tool.name}" description="{tool.description}"><object name="{tool.name}">'
                 + "".join(
                     [
-                        f'<string name="{arg_key}" description="{arg_value}" required="true"/>'
+                        f'<string name="{arg_key}" description="{arg_value}"/>'
                         for arg_key, arg_value in tool.input_args.items()
                     ]
                 )

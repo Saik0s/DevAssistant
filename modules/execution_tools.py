@@ -20,6 +20,7 @@ from langchain.agents import Tool
 from langchain.agents.tools import BaseTool
 from datetime import datetime
 from rich import print
+import traceback
 
 
 
@@ -36,7 +37,6 @@ class GuardRailTool(BaseTool):
         )
 
     def _run(self, input_str: str) -> str:  # sourcery skip: avoid-builtin-shadow
-        print(input_str)
         try:
             result = json.loads(input_str)
             action = result["action"]
@@ -46,11 +46,13 @@ class GuardRailTool(BaseTool):
             input.pop("reasoning", None)
             input.pop("plan", None)
             if len(input) == 1:
-                input = list(input.values())[0]
-            return self.child_tool.run(input)
+                final_input = list(input.values())[0]
+            else:
+                final_input = {key: str(input[key]) for key in self.input_args}
+            return str(self.child_tool.run(final_input))
 
         except Exception as e:
-            print(e)
+            print(traceback.format_exc())
             return f"Error occurred while executing tool {self.name}: {str(e)}\ninput_str: {input_str}"
 
     async def _arun(self, input_str: str) -> str:
@@ -121,7 +123,7 @@ def read_remote_depth(url: str, depth: int, query: str) -> str:
 
 
 def write_file(relative_path: str, content: str) -> str:
-    path = PREFIX_PATH + relative_path.replace("..", "")
+    path = relative_path if relative_path.startswith("/") else PREFIX_PATH + relative_path
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as file:
         file.write(content)
@@ -141,7 +143,7 @@ def apply_patch(patch_content: str) -> str:
 
 
 def read_file(relative_path: str) -> str:
-    path = PREFIX_PATH + relative_path.replace("..", "")
+    path = relative_path if relative_path.startswith("/") else PREFIX_PATH + relative_path
     with open(path, "r") as file:
         content = file.read()
     return content
@@ -172,21 +174,21 @@ def replace_content(relative_path: str, pattern: str, replacement: str) -> str:
 
 
 def copy_file(source_path: str, destination_path: str) -> str:
-    src_path = PREFIX_PATH + source_path.replace("..", "")
-    dest_path = PREFIX_PATH + destination_path.replace("..", "")
+    src_path = source_path if source_path.startswith("/") else PREFIX_PATH + source_path
+    dest_path = destination_path if destination_path.startswith("/") else PREFIX_PATH + destination_path
     shutil.copy(src_path, dest_path)
     return f"Copied file from {source_path} to {destination_path}"
 
 
 def move_file(source_path: str, destination_path: str) -> str:
-    src_path = PREFIX_PATH + source_path.replace("..", "")
-    dest_path = PREFIX_PATH + destination_path.replace("..", "")
+    src_path = source_path if source_path.startswith("/") else PREFIX_PATH + source_path
+    dest_path = destination_path if destination_path.startswith("/") else PREFIX_PATH + destination_path
     shutil.move(src_path, dest_path)
     return f"Moved file from {source_path} to {destination_path}"
 
 
 def delete_file(relative_path: str) -> str:
-    path = PREFIX_PATH + relative_path.replace("..", "")
+    path = relative_path if relative_path.startswith("/") else PREFIX_PATH + relative_path
     if os.path.isfile(path):
         os.remove(path)
     elif os.path.isdir(path):
@@ -197,7 +199,7 @@ def delete_file(relative_path: str) -> str:
 
 
 def append_file(relative_path: str, content: str) -> str:
-    path = PREFIX_PATH + relative_path.replace("..", "")
+    path = relative_path if relative_path.startswith("/") else PREFIX_PATH + relative_path
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a") as file:
         file.write(content)
@@ -287,9 +289,9 @@ read_remote_depth_tool = GuardRailTool(
 simple_web_page_reader = download_loader("SimpleWebPageReader")(html_to_text=True)
 
 
-def read_simple_web_page(urls: List[str]) -> List[str]:
-    documents = simple_web_page_reader.load_data(urls)
-    return [doc.text for doc in documents]
+def read_simple_web_page(url: str) -> str:
+    documents = simple_web_page_reader.load_data([url])
+    return "".join([doc.text for doc in documents])
 
 
 simple_web_page_reader_tool = GuardRailTool(
@@ -298,7 +300,7 @@ simple_web_page_reader_tool = GuardRailTool(
         func=read_simple_web_page,
         description="Read web pages using the SimpleWebPageReader. Input is a list of URLs.",
     ),
-    input_args={"action_input": "The list of URLs to read using the SimpleWebPageReader."},
+    input_args={"action_input": "The URL to read using the SimpleWebPageReader."},
 )
 
 
