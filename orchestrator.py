@@ -42,9 +42,9 @@ class AgentOrchestrator(Chain):
             if self.reasoning_module.task_list:
                 # Step 1: Pull the first task
                 task = self.reasoning_module.task_list.popleft()
-                self.print_next_task(task)
 
                 self.print_task_list()
+                self.print_next_task(task)
 
                 # TODO: Enable it back when flow is complerely tested
                 # # Process the current task using PerceptionModule
@@ -82,15 +82,15 @@ class AgentOrchestrator(Chain):
                 self.reasoning_module.update_tasks(processed_task, processed_execution_result)
                 print(f"\n{Fore.LIGHTMAGENTA_EX}Updated tasks based on stored data{Fore.RESET}")
 
-                # Evaluate the task result
-                is_finished, final_answer = self.evaluation_module.evaluate_from(
-                    observation=processed_execution_result,
-                )
+                # # Evaluate the task result
+                # is_finished, final_answer = self.evaluation_module.evaluate_from(
+                #     observation=processed_execution_result,
+                # )
 
-                self.print_evaluated_task_result(is_finished, final_answer)
+                # self.print_evaluated_task_result(is_finished, final_answer)
 
-                if is_finished:
-                    break
+                # if is_finished:
+                #     break
 
             num_iters += 1
             if self.max_iterations is not None and num_iters == self.max_iterations:
