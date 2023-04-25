@@ -123,14 +123,14 @@ class ExecutionOutputParser(GuardrailsOutputParser):
         if FINAL_ANSWER_ACTION in action:
             if "action_input" in result:
                 action_input = result["action_input"]
-            elif action in input and isinstance(input[action], dict) and "action_input" in input[action]:
-                action_input = input[action]["action_input"]
             elif action in input:
-                action_input = str(input[action])
+                if isinstance(input[action], dict) and "action_input" in input[action]:
+                    action_input = input[action]["action_input"]
+                else:
+                  action_input = str(input[action])
             else:
                 action_input = str(input)
             return AgentFinish({"output": action_input}, text)
-
         return AgentAction(action, input, text)
 
 class ExecutionAgent(ChatAgent):
