@@ -219,14 +219,25 @@ git_tool = GuardRailTool(
     },
 )
 
+import json
+
+def google_search_func(query: str) -> str:
+    result = bash.run(f'cd {os.path.dirname(os.path.realpath(__file__))}/tools && node google.js "{query}"')
+    result_json = json.loads(result)
+    results = result_json['results']
+    return "".join(
+        f"{r['title']}\n{r['description']}\n{r['url']}\n" for r in results
+    )
+
 google_search_tool = GuardRailTool(
     child_tool=Tool(
         name="google_search",
-        func=lambda query: bash.run(f'cd {os.path.dirname(os.path.realpath(__file__))}/tools && node google.js "{query}"'),
+        func=google_search_func,
         description="This is Google. Use this tool to search the internet. Input should be a string",
     ),
     input_args={"action_input": "The search query to be passed to Google."},
 )
+
 
 bash_tool = GuardRailTool(
     child_tool=Tool(
