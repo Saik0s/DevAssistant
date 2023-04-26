@@ -124,7 +124,9 @@ class ExecutionOutputParser(GuardrailsOutputParser):
             if "action_input" in result:
                 action_input = result["action_input"]
             elif action in input:
-                if isinstance(input[action], dict) and "action_input" in input[action]:
+                if isinstance(input[action], str):
+                    action_input = input[action]
+                elif isinstance(input[action], dict) and "action_input" in input[action]:
                     action_input = input[action]["action_input"]
                 else:
                   action_input = str(input[action])

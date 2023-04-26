@@ -21,7 +21,7 @@ class ReasoningModule:
         self.memory_module.store(str(milestones))
         for milestone in milestones:
             self.task_list.append({"task_name": milestone})
-            self.task_list = deque(self.prioritize_tasks(0))
+        self.task_list = deque(self.prioritize_tasks(0))
 
     def update_tasks(self, task: dict, result: dict):
         incomplete_tasks = [t["task_name"] for t in self.task_list]
@@ -38,9 +38,7 @@ class ReasoningModule:
         )
         new_tasks = response.split("\n")
         new_tasks = [{"task_name": task_name} for task_name in new_tasks if task_name.strip()]
-        this_task_id = (
-            int("".join(filter(str.isdigit, task["task_id"]))) if isinstance(task["task_id"], str) else task["task_id"]
-        )
+        this_task_id = int("".join(filter(str.isdigit, task["task_id"]))) if isinstance(task["task_id"], str) else task["task_id"]
         task_id_counter = this_task_id
 
         for new_task in new_tasks:
@@ -56,9 +54,7 @@ class ReasoningModule:
         task_names = "\n".join(task_names)
         objective = self.memory_module.objective
         next_task_id = this_task_id + 1
-        response = self.task_prioritization_chain.run(
-            task_names=task_names, next_task_id=next_task_id, objective=objective
-        )
+        response = self.task_prioritization_chain.run(task_names=task_names, next_task_id=next_task_id, objective=objective)
         new_tasks = response.split("\n")
         prioritized_task_list = []
         task_id_counter = this_task_id
@@ -90,6 +86,11 @@ class TaskCreationChain(LLMChain):
             "Consider if a new task is essential for reaching the objective.\n"
             "Return tasks as an array.\n"
         )
+        prompt = PromptTemplate(
+            template=task_creation_template,
+            input_variables=["result", "task_description", "incomplete_tasks", "objective"],
+        )
+        return cls(prompt=prompt, llm=llm, verbose=verbose)
 
 
 class TaskPrioritizationChain(LLMChain):
@@ -109,18 +110,16 @@ class TaskPrioritizationChain(LLMChain):
         )
         return cls(prompt=prompt, llm=llm, verbose=verbose)
 
+
 class MilestoneChain(LLMChain):
     """Chain to generate milestones."""
 
     @classmethod
     def from_llm(cls, llm: BaseLLM, verbose: bool = True) -> LLMChain:
         """Get the response parser."""
-        milestone_template = (
-            "As a milestone AI, generate milestones for the objective: {objective}.\n"
-            "Return milestones as an array.\n"
-        )
+        milestone_template = "As a milestone AI, generate milestones for the objective: {objective}.\n" "Return milestones as an array.\n"
 
-        return cls(llm, PromptTemplate(milestone_template), verbose=verbose)
+        return cls(llm=llm, prompt=PromptTemplate(input_variables=["objective"], template=milestone_template), verbose=verbose)
 
     def run(self, objective: str) -> List[str]:
         """Run the chain."""
@@ -128,6 +127,5 @@ class MilestoneChain(LLMChain):
 
     def generate_milestones(self, objective: str) -> List[str]:
         """Generate milestones."""
-        response = self.prompt.run({"objective": objective})
+        response = self.predict(objective=objective)
         return response.strip().split("\n") if response else []
-
