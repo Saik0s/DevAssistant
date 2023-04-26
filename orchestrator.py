@@ -10,9 +10,8 @@ from modules.perception import PerceptionModule
 from modules.reasoning import ReasoningModule
 from typing import Any, Dict, List, Optional
 from colorama import Fore, Back, Style
+from langchain.callbacks import get_openai_callback
 import rich
-
-from utils.llm import create_llm
 
 
 class AgentOrchestrator(Chain):
@@ -39,73 +38,73 @@ class AgentOrchestrator(Chain):
 
         num_iters = 0
         while True:
-            if self.reasoning_module.task_list:
-                # Step 1: Pull the first task
-                task = self.reasoning_module.task_list.popleft()
+            with get_openai_callback() as cb:
+                if self.reasoning_module.task_list:
+                    # Step 1: Pull the first task
+                    task = self.reasoning_module.task_list.popleft()
 
-                self.print_task_list()
-                self.print_next_task(task)
+                    self.print_task_list()
+                    self.print_next_task(task)
 
-                # TODO: Enable it back when flow is complerely tested
-                # # Process the current task using PerceptionModule
-                # processed_task = self.perception_module.process_task(task)
-                # self.print_optimized_next_task(processed_task)
-                processed_task = task
+                    # TODO: Enable it back when flow is complerely tested
+                    # # Process the current task using PerceptionModule
+                    # processed_task = self.perception_module.process_task(task)
+                    # self.print_optimized_next_task(processed_task)
+                    processed_task = task
 
-                # Step 2: Execute the task
-                execution_result = self.execution_module.execute(processed_task)
-                self.print_task_result(execution_result)
-                self.reasoning_module.completed_task_list.append(task)
+                    # Step 2: Execute the task
+                    execution_result = self.execution_module.execute(processed_task)
+                    self.print_task_result(execution_result)
+                    self.reasoning_module.completed_task_list.append(task)
 
-                self.memory_module.store_result(execution_result, processed_task)
-                print(f"\n{Fore.LIGHTMAGENTA_EX}Saved new result to memory{Fore.RESET}")
+                    self.memory_module.store_result(execution_result, processed_task)
+                    print(f"\n{Fore.LIGHTMAGENTA_EX}Saved new result to memory{Fore.RESET}")
 
-                # TODO: Enable it back when flow is complerely tested
-                # # Process the execution result using PerceptionModule before storing it in the MemoryModule
-                # processed_execution_result = self.perception_module.process_result(execution_result)
-                # self.print_optimized_task_result(processed_execution_result)
-                processed_execution_result = execution_result
+                    # TODO: Enable it back when flow is complerely tested
+                    # # Process the execution result using PerceptionModule before storing it in the MemoryModule
+                    # processed_execution_result = self.perception_module.process_result(execution_result)
+                    # self.print_optimized_task_result(processed_execution_result)
+                    processed_execution_result = execution_result
 
-                # TODO: Enable it back when flow is complerely tested
-                # new_memory = self.learning_module.learn_from(
-                #     observation=processed_execution_result,
-                #     completed_tasks=list(self.reasoning_module.completed_task_list),
-                #     pending_tasks=list(self.reasoning_module.task_list),
-                # )
-                # self.print_new_memory(new_memory)
+                    # TODO: Enable it back when flow is complerely tested
+                    # new_memory = self.learning_module.learn_from(
+                    #     observation=processed_execution_result,
+                    #     completed_tasks=list(self.reasoning_module.completed_task_list),
+                    #     pending_tasks=list(self.reasoning_module.task_list),
+                    # )
+                    # self.print_new_memory(new_memory)
 
-                # # Step 3: Store the result in Memory
-                # self.memory_module.store(new_memory)
-                # print(f"\n{Fore.LIGHTMAGENTA_EX}Saved new learnings to memory{Fore.RESET}")
+                    # # Step 3: Store the result in Memory
+                    # self.memory_module.store(new_memory)
+                    # print(f"\n{Fore.LIGHTMAGENTA_EX}Saved new learnings to memory{Fore.RESET}")
 
-                # Step 4: Create new tasks and reprioritize task list
-                self.reasoning_module.update_tasks(processed_task, processed_execution_result)
-                print(f"\n{Fore.LIGHTMAGENTA_EX}Updated tasks based on stored data{Fore.RESET}")
+                    # Step 4: Create new tasks and reprioritize task list
+                    self.reasoning_module.update_tasks(processed_task, processed_execution_result)
+                    print(f"\n{Fore.LIGHTMAGENTA_EX}Updated tasks based on stored data{Fore.RESET}")
 
-                # # Evaluate the task result
-                # is_finished, final_answer = self.evaluation_module.evaluate_from(
-                #     observation=processed_execution_result,
-                # )
+                    # # Evaluate the task result
+                    # is_finished, final_answer = self.evaluation_module.evaluate_from(
+                    #     observation=processed_execution_result,
+                    # )
 
-                # self.print_evaluated_task_result(is_finished, final_answer)
+                    # self.print_evaluated_task_result(is_finished, final_answer)
 
-                # if is_finished:
-                #     break
+                    # if is_finished:
+                    #     break
 
-            num_iters += 1
-            if self.max_iterations is not None and num_iters == self.max_iterations:
-                print(f"\n{Fore.RED}\n*****TASK ENDING*****\n{Fore.RESET}")
-                break
+                rich.print(cb)
 
-        self.print_end(final_answer)
+                num_iters += 1
+                if self.max_iterations is not None and num_iters == self.max_iterations:
+                    print(f"\n{Fore.RED}\n*****TASK ENDING*****\n{Fore.RESET}")
+                    break
+
+        # self.print_end(final_answer)
 
         return {}
 
     @classmethod
-    def from_llm(cls, verbose: bool = False, **kwargs) -> "AgentOrchestrator":
-        llm = OpenAI(temperature=0, max_tokens=500, verbose=verbose, request_timeout=180, max_retries=10)
-        exec_llm = create_llm(model_name="gpt-3.5-turbo", verbose=verbose)
-
+    def from_llm(cls, llm: OpenAI, exec_llm: BaseLLM, verbose: bool = False, **kwargs) -> "AgentOrchestrator":
         memory_module = MemoryModule(llm, verbose=verbose)
         perception_module = PerceptionModule(llm, memory_module=memory_module, verbose=verbose)
         learning_module = LearningModule(llm, memory_module=memory_module, verbose=verbose)
@@ -125,9 +124,11 @@ class AgentOrchestrator(Chain):
 
     def print_task_list(self):
         print(f"\n{Fore.BLUE}*****Completed*****{Fore.RESET}")
-        rich.print(list(self.reasoning_module.completed_task_list))
+        for task in self.reasoning_module.completed_task_list:
+            print(f"- {task['task_name']}")
         print(f"\n{Fore.GREEN}*****Pending*****{Fore.RESET}")
-        rich.print(list(self.reasoning_module.task_list))
+        for task in self.reasoning_module.task_list:
+            print(f"- {task['task_name']}")
 
     def print_next_task(self, task: Dict):
         print(f"\n{Fore.LIGHTBLUE_EX}*****Next Task*****{Fore.RESET}")

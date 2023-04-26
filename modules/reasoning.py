@@ -8,17 +8,20 @@ from typing import Dict, List
 
 
 class ReasoningModule:
-    first_task = "Add all the missing details to the objective."
-
     def __init__(self, llm, memory_module: MemoryModule, verbose: bool = True):
         self.task_list = deque()
         self.completed_task_list = deque()
         self.memory_module = memory_module
         self.task_creation_chain = TaskCreationChain.from_llm(llm, verbose)
         self.task_prioritization_chain = TaskPrioritizationChain.from_llm(llm, verbose)
+        self.milestone_chain = MilestoneChain.from_llm(llm, verbose)
 
     def initialize_tasks(self):
-        self.task_list.append({"task_id": 1, "task_name": self.first_task})
+        milestones = self.milestone_chain.run(objective=self.memory_module.objective)
+        self.memory_module.store(str(milestones))
+        for milestone in milestones:
+            self.task_list.append({"task_name": milestone})
+            self.task_list = deque(self.prioritize_tasks(0))
 
     def update_tasks(self, task: dict, result: dict):
         incomplete_tasks = [t["task_name"] for t in self.task_list]
@@ -87,16 +90,6 @@ class TaskCreationChain(LLMChain):
             "Consider if a new task is essential for reaching the objective.\n"
             "Return tasks as an array.\n"
         )
-        prompt = PromptTemplate(
-            template=task_creation_template,
-            input_variables=[
-                "result",
-                "task_description",
-                "incomplete_tasks",
-                "objective",
-            ],
-        )
-        return cls(prompt=prompt, llm=llm, verbose=verbose)
 
 
 class TaskPrioritizationChain(LLMChain):
@@ -115,3 +108,26 @@ class TaskPrioritizationChain(LLMChain):
             input_variables=["task_names", "next_task_id", "objective"],
         )
         return cls(prompt=prompt, llm=llm, verbose=verbose)
+
+class MilestoneChain(LLMChain):
+    """Chain to generate milestones."""
+
+    @classmethod
+    def from_llm(cls, llm: BaseLLM, verbose: bool = True) -> LLMChain:
+        """Get the response parser."""
+        milestone_template = (
+            "As a milestone AI, generate milestones for the objective: {objective}.\n"
+            "Return milestones as an array.\n"
+        )
+
+        return cls(llm, PromptTemplate(milestone_template), verbose=verbose)
+
+    def run(self, objective: str) -> List[str]:
+        """Run the chain."""
+        return self.generate_milestones(objective=objective)
+
+    def generate_milestones(self, objective: str) -> List[str]:
+        """Generate milestones."""
+        response = self.prompt.run({"objective": objective})
+        return response.strip().split("\n") if response else []
+
